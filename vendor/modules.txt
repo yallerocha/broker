@@ -1,0 +1,2 @@
+# k8s.io/client-go v0.23.0
+## explicit; go 1.16
