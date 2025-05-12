@@ -58,8 +58,6 @@ func Deployment_create(data utils.Workload) *appv1.Deployment {
 
 func Job_create(data utils.Workload, job_duration string) *batchv1.Job {
 
-	replicas := int32(data.Replicas)
-
 	tolerations := []corev1.Toleration{{
 		Key:      "kwok-provider",
 		Operator: corev1.TolerationOpEqual,
@@ -72,15 +70,15 @@ func Job_create(data utils.Workload, job_duration string) *batchv1.Job {
 			Name: data.Name,
 		},
 		Spec: batchv1.JobSpec{
-			Completions: &replicas,
-			Parallelism: &replicas,
+			Completions: int32Ptr(data.Replicas),
+			Parallelism: int32Ptr(data.Replicas),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: data.Annotations,
 					Labels:      map[string]string{"job": "job-app"},
 				},
 				Spec: corev1.PodSpec{
-					RestartPolicy: corev1.RestartPolicyOnFailure,
+					RestartPolicy: corev1.RestartPolicyNever,
 					Containers: []corev1.Container{
 						{
 							Name:  "busybox",
