@@ -11,6 +11,14 @@ import (
 )
 
 func Deployment_create(data utils.Workload) *appv1.Deployment {
+
+	tolerations := []corev1.Toleration{{
+		Key:      "kwok-provider",
+		Operator: corev1.TolerationOpEqual,
+		Value:    "true",
+		Effect:   corev1.TaintEffectNoSchedule,
+	}}
+
 	deployment := &appv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: data.Name,
@@ -22,14 +30,15 @@ func Deployment_create(data utils.Workload) *appv1.Deployment {
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "deployment-app"},
+					Labels:      map[string]string{"app": "deployment-app"},
+					Annotations: data.Annotations,
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:  "busybox",
-							Image: "busybox:latest",
-							Ports: []corev1.ContainerPort{{ContainerPort: 80}},
+							Name:    "busybox",
+							Image:   "busybox:latest",
+							Command: []string{"sh", "-c", "echo Hello World! && sleep 30"},
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse(data.CpuRequested),
@@ -38,6 +47,7 @@ func Deployment_create(data utils.Workload) *appv1.Deployment {
 							},
 						},
 					},
+					Tolerations: tolerations,
 				},
 			},
 		},
@@ -46,15 +56,28 @@ func Deployment_create(data utils.Workload) *appv1.Deployment {
 	return deployment
 }
 
-func Job_create(data utils.Workload) *batchv1.Job {
+func Job_create(data utils.Workload, job_duration string) *batchv1.Job {
+
+	replicas := int32(data.Replicas)
+
+	tolerations := []corev1.Toleration{{
+		Key:      "kwok-provider",
+		Operator: corev1.TolerationOpEqual,
+		Value:    "true",
+		Effect:   corev1.TaintEffectNoSchedule},
+	}
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: data.Name,
 		},
 		Spec: batchv1.JobSpec{
+			Completions: &replicas,
+			Parallelism: &replicas,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"job": "job-app"},
+					Annotations: data.Annotations,
+					Labels:      map[string]string{"job": "job-app"},
 				},
 				Spec: corev1.PodSpec{
 					RestartPolicy: corev1.RestartPolicyOnFailure,
@@ -67,10 +90,15 @@ func Job_create(data utils.Workload) *batchv1.Job {
 									corev1.ResourceCPU:    resource.MustParse(data.CpuRequested),
 									corev1.ResourceMemory: resource.MustParse(data.MemRequested),
 								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse(data.CpuRequested),
+									corev1.ResourceMemory: resource.MustParse(data.MemRequested),
+								},
 							},
 							Command: []string{"sh", "-c", "echo Hello World! && sleep 30"},
 						},
 					},
+					Tolerations: tolerations,
 				},
 			},
 		},
