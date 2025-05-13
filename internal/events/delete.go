@@ -9,6 +9,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// Delete a deployment with the given name in the specified namespace
+// Parameters:
+// - clientset: Kubernetes clientset used to perform the deletation
+// - name: Name of the Deployment to delete
+// - namespace: Namespace where the deployment resides
 func Deployment_delete(clientset *kubernetes.Clientset, name string, namespace string) {
 	deletePolicy := metav1.DeletePropagationForeground
 
@@ -25,6 +30,11 @@ func Deployment_delete(clientset *kubernetes.Clientset, name string, namespace s
 	}
 }
 
+// Delete a deployment with the given name in the specified namespace
+// Parameters:
+// - clientset: Kubernetes clientset used to perform the deletation
+// - name: Name of the Deployment to delete
+// - namespace: Namespace where the deployment resides
 func Job_delete(clientset *kubernetes.Clientset, name string, namespace string) {
 	deletePolicy := metav1.DeletePropagationForeground
 
