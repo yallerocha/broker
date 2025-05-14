@@ -1,6 +1,8 @@
 package events
 
 import (
+	"slices"
+
 	appv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -12,6 +14,8 @@ import (
 
 func Deployment_create(data utils.Workload) *appv1.Deployment {
 
+	label := map[string]string{}
+
 	tolerations := []corev1.Toleration{{
 		Key:      "kwok-provider",
 		Operator: corev1.TolerationOpEqual,
@@ -19,9 +23,15 @@ func Deployment_create(data utils.Workload) *appv1.Deployment {
 		Effect:   corev1.TaintEffectNoSchedule,
 	}}
 
+	if !slices.Contains([]string{"", "na", "n/a", "nan", "none"}, data.Label) {
+		label["cloud"] = data.Label
+	}
+
 	deployment := &appv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: data.Name,
+			Name:        data.Name,
+			Labels:      label,
+			Annotations: data.Annotations,
 		},
 		Spec: appv1.DeploymentSpec{
 			Replicas: int32Ptr(data.Replicas),
@@ -30,8 +40,7 @@ func Deployment_create(data utils.Workload) *appv1.Deployment {
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:      map[string]string{"app": "deployment-app"},
-					Annotations: data.Annotations,
+					Labels: map[string]string{"app": "deployment-app"},
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
@@ -56,7 +65,9 @@ func Deployment_create(data utils.Workload) *appv1.Deployment {
 	return deployment
 }
 
-func Job_create(data utils.Workload, job_duration string) *batchv1.Job {
+func Job_create(data utils.Workload) *batchv1.Job {
+
+	label := map[string]string{}
 
 	tolerations := []corev1.Toleration{{
 		Key:      "kwok-provider",
@@ -65,17 +76,22 @@ func Job_create(data utils.Workload, job_duration string) *batchv1.Job {
 		Effect:   corev1.TaintEffectNoSchedule},
 	}
 
+	if !slices.Contains([]string{"", "na", "n/a", "nan", "none"}, data.Label) {
+		label["cloud"] = data.Label
+	}
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: data.Name,
+			Name:        data.Name,
+			Labels:      label,
+			Annotations: data.Annotations,
 		},
 		Spec: batchv1.JobSpec{
 			Completions: int32Ptr(data.Replicas),
 			Parallelism: int32Ptr(data.Replicas),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Annotations: data.Annotations,
-					Labels:      map[string]string{"job": "job-app"},
+					Labels: map[string]string{"job": "job-app"},
 				},
 				Spec: corev1.PodSpec{
 					RestartPolicy: corev1.RestartPolicyNever,
