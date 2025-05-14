@@ -5,5 +5,6 @@ type Workload struct {
 	Replicas     int32
 	CpuRequested string
 	MemRequested string
+	Label        string
 	Annotations  map[string]string
 }
