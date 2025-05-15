@@ -50,7 +50,7 @@ func Job_delete(clientset *kubernetes.Clientset, name string, namespace string) 
 	)
 
 	if err != nil {
-		log.Fatalf("Failed to delete Deployment '%s': %v", name, err)
+		log.Fatalf("Failed to delete Job '%s': %v", name, err)
 	}
 }
 
