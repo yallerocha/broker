@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 
@@ -20,4 +21,10 @@ func GetClientSet() (*kubernetes.Clientset, error) {
 	}
 
 	return kubernetes.NewForConfig(config)
+}
+
+func Exit_if_err(err error, msg string) {
+	if err != nil {
+		log.Fatalln(msg + ":\n" + err.Error())
+	}
 }
