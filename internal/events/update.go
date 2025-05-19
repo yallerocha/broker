@@ -77,11 +77,11 @@ func Job_update(clientset *kubernetes.Clientset, data utils.Workload) {
 
 	newCpu := resource.MustParse(data.CpuRequested)
 	newMem := strings.Split(data.MemRequested, "Mi")
-	newMemConverted, err := strconv.ParseInt(newMem[0], 10, 64)
+	newMemConverted, err := strconv.ParseFloat(newMem[0], 64)
 
 	exit_if_err(err, "Failed during convert process")
 
-	hasDiff := currentCpu != newCpu.MilliValue() || math.Abs(float64(newMemConverted-currentMem)) > 0.0001 || *job.Spec.Completions != data.Replicas
+	hasDiff := currentCpu != newCpu.MilliValue() || math.Abs(newMemConverted-float64(currentMem)) > 0.0001 || *job.Spec.Completions != data.Replicas
 
 	if hasDiff {
 		Job_delete(clientset, data.Name, namespace)
