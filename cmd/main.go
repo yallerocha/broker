@@ -8,8 +8,8 @@ import (
 )
 
 func main() {
-	csv_path := "/home/joselima/Documentos/broker/examples/project_config_example.yaml"
-	yaml_path := "/home/joselima/Documentos/broker/data/unified_events2.csv"
+	csv_path := "your-path"
+	yaml_path := "your-path"
 
 	f, err := os.Open(csv_path)
 
