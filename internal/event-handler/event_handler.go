@@ -3,7 +3,9 @@ package eventhandler
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
+	"os"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -15,11 +17,15 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-var wg sync.WaitGroup
+var (
+	wg     sync.WaitGroup
+	logger *slog.Logger
+)
 
-func Handler(config utils.Config, origin_data dataframe.DataFrame) {
-	clientset, err := utils.GetClientSet()
-	utils.Exit_if_err(err, "Failed to get kubecontext")
+func Handler(config utils.Config, origin_data dataframe.DataFrame, default_logger *slog.Logger) {
+	clientset, err := utils.GetClientSet(config.KubeConfig)
+	logger = default_logger
+	log_err("Failed to get the client context", err)
 
 	start_time := time.Now()
 	df := origin_data.Arrange(dataframe.Sort("timestamp"))
@@ -28,7 +34,7 @@ func Handler(config utils.Config, origin_data dataframe.DataFrame) {
 	for i := range rows[0:df.Nrow()] {
 		kind := df.Col("kind").Elem(i).String()
 		time_stamp, err := df.Col("timestamp").Elem(i).Int()
-		utils.Exit_if_err(err, "Failed to read the timestamp")
+		log_err("Failed to read the timestamp", err)
 
 		sleep_time(time_stamp, start_time)
 		wg.Add(1)
@@ -38,7 +44,7 @@ func Handler(config utils.Config, origin_data dataframe.DataFrame) {
 		} else if strings.ToLower(kind) == "job" {
 			go job_action(clientset, df, i)
 		} else {
-			log.Fatalf("Unknown kind: %s", kind)
+			log_err(fmt.Sprintf("Unknown kind %s", kind), fmt.Errorf(""))
 		}
 
 	}
@@ -50,7 +56,7 @@ func sleep_time(time_stamp int, start_time time.Time) {
 	elapsed := time.Since(start_time)
 
 	if elapsed.Seconds() < float64(time_stamp) {
-		log.Printf("Waiting until %f seconds", float64(time_stamp))
+		logger.Info(fmt.Sprintf("⏳ Waiting %d seconds", int64(time_stamp)))
 		time.Sleep(time.Duration(float64(time_stamp)-elapsed.Seconds()) * time.Second)
 	}
 
@@ -74,17 +80,18 @@ func deployment_action(clientset *kubernetes.Clientset, df dataframe.DataFrame, 
 	action := df.Col("action").Elem(idx).String()
 	action = strings.ToLower(action)
 
+	logger.Info(fmt.Sprintf("➡️ [%ss] [Deployment] %s: %s", df.Col("timestamp").Elem(idx).String(), strings.ToUpper(action), deployment.Name))
 	if action == "create" {
 		deployment_created := events.Deployment_create(deployment)
 		_, err := clientset.AppsV1().Deployments("default").Create(context.Background(), deployment_created, metav1.CreateOptions{})
 
-		utils.Exit_if_err(err, "Failed to create Deployment")
+		log_err("Failed to create Deployment", err)
 	} else if action == "delete" {
-		events.Deployment_delete(clientset, deployment.Name, "default")
+		events.Deployment_delete(logger, clientset, deployment.Name, "default")
 	} else if action == "update" {
-		events.Deployment_update(clientset, deployment)
+		events.Deployment_update(logger, clientset, deployment)
 	} else {
-		log.Fatalf("Unknown action: %s", action)
+		log_err(fmt.Sprintf("Unknown action: %s", action), fmt.Errorf(""))
 	}
 
 }
@@ -109,16 +116,30 @@ func job_action(clientset *kubernetes.Clientset, df dataframe.DataFrame, idx int
 	action := df.Col("action").Elem(idx).String()
 	action = strings.ToLower(action)
 
+	logger.Info(fmt.Sprintf("➡️ [%ss] [Job] %s: %s", df.Col("timestamp").Elem(idx).String(), strings.ToUpper(action), job.Name))
 	if action == "create" {
 		job_created := events.Job_create(job)
 		_, err := clientset.BatchV1().Jobs("default").Create(context.Background(), job_created, metav1.CreateOptions{})
 
-		utils.Exit_if_err(err, "Failed to create Job")
+		log_err("Failed to create Job", err)
 	} else if action == "delete" {
-		events.Job_delete(clientset, job.Name, "default")
+		events.Job_delete(logger, clientset, job.Name, "default")
 	} else if action == "update" {
-		events.Job_update(clientset, job)
+		events.Job_update(logger, clientset, job)
 	} else {
-		log.Fatalf("Unknown action: %s", action)
+		log_err(fmt.Sprintf("Unknown action: %s", action), fmt.Errorf(""))
+	}
+}
+
+func log_err(msg string, err error) {
+	if err != nil {
+		_, file, line, ok := runtime.Caller(1)
+		if !ok {
+			file = "???"
+			line = 0
+		}
+
+		logger.Error("❌ "+msg+err.Error(), slog.String("source", fmt.Sprintf("%s:%d", file, line)))
+		os.Exit(1)
 	}
 }

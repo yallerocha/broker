@@ -9,9 +9,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func GetClientSet() (*kubernetes.Clientset, error) {
+func GetClientSet(kubetype string) (*kubernetes.Clientset, error) {
 	kubeconfig := filepath.Join(
-		os.Getenv("HOME"), ".kube", "config",
+		os.Getenv("HOME"), ".kube", kubetype,
 	)
 
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)

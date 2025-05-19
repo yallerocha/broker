@@ -2,8 +2,9 @@ package events
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"math"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -17,11 +18,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func Deployment_update(clientset *kubernetes.Clientset, data utils.Workload) *v1.Deployment {
+func Deployment_update(logger *slog.Logger, clientset *kubernetes.Clientset, data utils.Workload) *v1.Deployment {
 	namespace := "default"
 
 	deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.TODO(), data.Name, meta.GetOptions{})
-	exit_if_err(err, "Faile to get deployment")
+	exit_if_err(logger, err, "Failed to get deployment")
 
 	// resource update in each container
 
@@ -58,16 +59,16 @@ func Deployment_update(clientset *kubernetes.Clientset, data utils.Workload) *v1
 	// apply the update
 
 	update, err := clientset.AppsV1().Deployments(namespace).Update(context.TODO(), deployment, meta.UpdateOptions{})
-	exit_if_err(err, "Failed to update deployment")
+	exit_if_err(logger, err, "Failed to update deployment")
 
 	return update
 }
 
-func Job_update(clientset *kubernetes.Clientset, data utils.Workload) {
+func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, data utils.Workload) {
 	namespace := "default"
 
 	job, err := clientset.BatchV1().Jobs(namespace).Get(context.TODO(), data.Name, meta.GetOptions{})
-	exit_if_err(err, "Failed to get job")
+	exit_if_err(logger, err, "Failed to get job")
 
 	// recreate if has difference
 
@@ -79,18 +80,18 @@ func Job_update(clientset *kubernetes.Clientset, data utils.Workload) {
 	newMem := strings.Split(data.MemRequested, "Mi")
 	newMemConverted, err := strconv.ParseFloat(newMem[0], 64)
 
-	exit_if_err(err, "Failed during convert process")
+	exit_if_err(logger, err, "Failed during convert process")
 
 	hasDiff := currentCpu != newCpu.MilliValue() || math.Abs(newMemConverted-float64(currentMem)) > 0.0001 || *job.Spec.Completions != data.Replicas
 
 	if hasDiff {
-		Job_delete(clientset, data.Name, namespace)
+		Job_delete(logger, clientset, data.Name, namespace)
 
 		time.Sleep(500 * time.Millisecond)
 		job_created := Job_create(data)
 
 		_, err := clientset.BatchV1().Jobs(namespace).Create(context.TODO(), job_created, meta.CreateOptions{})
-		exit_if_err(err, "Failed to update job")
+		exit_if_err(logger, err, "Failed to update job")
 
 		return
 	}
@@ -123,11 +124,12 @@ func Job_update(clientset *kubernetes.Clientset, data utils.Workload) {
 	// Perform the update
 
 	_, err = clientset.BatchV1().Jobs(namespace).Update(context.TODO(), job, meta.UpdateOptions{})
-	exit_if_err(err, "Failed to update job")
+	exit_if_err(logger, err, "Failed to update job")
 }
 
-func exit_if_err(err error, msg string) {
+func exit_if_err(logger *slog.Logger, err error, msg string) {
 	if err != nil {
-		log.Fatalln(msg + ":\n" + err.Error())
+		logger.Error("❌ " + msg + err.Error())
+		os.Exit(1)
 	}
 }

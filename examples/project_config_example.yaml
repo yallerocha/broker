@@ -1,2 +1,1 @@
-kubeconfig: "karmada.config"
-number: 1
+kubeconfig: "config"
