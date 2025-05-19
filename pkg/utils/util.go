@@ -9,6 +9,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+// Gets the current kube context, it must be a valid context to submit
+// the actions.
+// receives a string that represents the context defined in the config file.
 func GetClientSet(kubetype string) (*kubernetes.Clientset, error) {
 	kubeconfig := filepath.Join(
 		os.Getenv("HOME"), ".kube", kubetype,
