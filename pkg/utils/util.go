@@ -23,6 +23,9 @@ func GetClientSet(kubetype string) (*kubernetes.Clientset, error) {
 		return nil, err
 	}
 
+	config.QPS = 100
+	config.Burst = 200
+
 	return kubernetes.NewForConfig(config)
 }
 
