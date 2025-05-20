@@ -2,7 +2,9 @@ package events
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"log/slog"
+	"os"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,7 +16,7 @@ import (
 // - clientset: Kubernetes clientset used to perform the deletation
 // - name: Name of the Deployment to delete
 // - namespace: Namespace where the deployment resides
-func Deployment_delete(clientset *kubernetes.Clientset, name string, namespace string) {
+func Deployment_delete(logger *slog.Logger, clientset *kubernetes.Clientset, name string, namespace string) {
 	deletePolicy := metav1.DeletePropagationForeground
 
 	err := clientset.AppsV1().Deployments(namespace).Delete(
@@ -26,7 +28,8 @@ func Deployment_delete(clientset *kubernetes.Clientset, name string, namespace s
 	)
 
 	if err != nil {
-		log.Fatalf("Failed to delete Deployment '%s': %v", name, err)
+		logger.Error(fmt.Sprintf("❌ "+"Failed to Delete a Deployment. Name: %s", name))
+		os.Exit(1)
 	}
 }
 
@@ -35,7 +38,7 @@ func Deployment_delete(clientset *kubernetes.Clientset, name string, namespace s
 // - clientset: Kubernetes clientset used to perform the deletation
 // - name: Name of the Deployment to delete
 // - namespace: Namespace where the deployment resides
-func Job_delete(clientset *kubernetes.Clientset, name string, namespace string) {
+func Job_delete(logger *slog.Logger, clientset *kubernetes.Clientset, name string, namespace string) {
 	deletePolicy := metav1.DeletePropagationForeground
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -50,7 +53,7 @@ func Job_delete(clientset *kubernetes.Clientset, name string, namespace string) 
 	)
 
 	if err != nil {
-		log.Fatalf("Failed to delete Job '%s': %v", name, err)
+		logger.Error("❌ " + fmt.Sprintf("Failed to Delete a Job. Name: %s", name))
+		os.Exit(1)
 	}
 }
-

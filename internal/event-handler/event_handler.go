@@ -1,1 +1,145 @@
 package eventhandler
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"os"
+	"runtime"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/cloud-ai-ufcg/broker/internal/events"
+	"github.com/cloud-ai-ufcg/broker/pkg/utils"
+	"github.com/go-gota/gota/dataframe"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+)
+
+var (
+	wg     sync.WaitGroup
+	logger *slog.Logger
+)
+
+func Handler(config utils.Config, origin_data dataframe.DataFrame, default_logger *slog.Logger) {
+	clientset, err := utils.GetClientSet(config.KubeConfig)
+	logger = default_logger
+	log_err("Failed to get the client context", err)
+
+	start_time := time.Now()
+	df := origin_data.Arrange(dataframe.Sort("timestamp"))
+	rows := df.Records()
+
+	for i := range rows[0:df.Nrow()] {
+		kind := df.Col("kind").Elem(i).String()
+		time_stamp, err := df.Col("timestamp").Elem(i).Int()
+		log_err("Failed to read the timestamp", err)
+
+		sleep_time(time_stamp, start_time)
+		wg.Add(1)
+
+		if strings.ToLower(kind) == "deployment" {
+			go deployment_action(clientset, df, i)
+		} else if strings.ToLower(kind) == "job" {
+			go job_action(clientset, df, i)
+		} else {
+			log_err(fmt.Sprintf("Unknown kind %s", kind), fmt.Errorf(""))
+		}
+
+	}
+
+	wg.Wait()
+}
+
+func sleep_time(time_stamp int, start_time time.Time) {
+	elapsed := time.Since(start_time)
+
+	if elapsed.Seconds() < float64(time_stamp) {
+		logger.Info(fmt.Sprintf("⏳ Waiting %d seconds", int64(time_stamp)))
+		time.Sleep(time.Duration(float64(time_stamp)-elapsed.Seconds()) * time.Second)
+	}
+
+}
+
+func deployment_action(clientset *kubernetes.Clientset, df dataframe.DataFrame, idx int) {
+	defer wg.Done()
+
+	replicas, _ := df.Col("replicas").Elem(idx).Int()
+	mem_formated := int64(df.Col("memory").Elem(idx).Float() * 1024)
+
+	deployment := utils.Workload{
+		Name:         df.Col("id").Elem(idx).String(),
+		Replicas:     int32(replicas),
+		CpuRequested: df.Col("cpu").Elem(idx).String(),
+		MemRequested: fmt.Sprintf("%dMi", mem_formated),
+		Label:        df.Col("label").Elem(idx).String(),
+		Annotations:  map[string]string{},
+	}
+
+	action := df.Col("action").Elem(idx).String()
+	action = strings.ToLower(action)
+
+	logger.Info(fmt.Sprintf("➡️ [%ss] [Deployment] %s: %s", df.Col("timestamp").Elem(idx).String(), strings.ToUpper(action), deployment.Name))
+	if action == "create" {
+		deployment_created := events.Deployment_create(deployment)
+		_, err := clientset.AppsV1().Deployments("default").Create(context.Background(), deployment_created, metav1.CreateOptions{})
+
+		log_err("Failed to create Deployment", err)
+	} else if action == "delete" {
+		events.Deployment_delete(logger, clientset, deployment.Name, "default")
+	} else if action == "update" {
+		events.Deployment_update(logger, clientset, deployment)
+	} else {
+		log_err(fmt.Sprintf("Unknown action: %s", action), fmt.Errorf(""))
+	}
+
+}
+
+func job_action(clientset *kubernetes.Clientset, df dataframe.DataFrame, idx int) {
+	defer wg.Done()
+
+	replicas, _ := df.Col("replicas").Elem(idx).Int()
+	mem_formated := int64(df.Col("memory").Elem(idx).Float() * 1024)
+
+	job := utils.Workload{
+		Name:         df.Col("id").Elem(idx).String(),
+		Replicas:     int32(replicas),
+		CpuRequested: df.Col("cpu").Elem(idx).String(),
+		MemRequested: fmt.Sprintf("%dMi", mem_formated),
+		Label:        df.Col("label").Elem(idx).String(),
+		Annotations: map[string]string{
+			"pod-complete.stage.kwok.x-k8s.io/delay": df.Col("job_duration").Elem(idx).String() + "s",
+		},
+	}
+
+	action := df.Col("action").Elem(idx).String()
+	action = strings.ToLower(action)
+
+	logger.Info(fmt.Sprintf("➡️ [%ss] [Job] %s: %s", df.Col("timestamp").Elem(idx).String(), strings.ToUpper(action), job.Name))
+	if action == "create" {
+		job_created := events.Job_create(job)
+		_, err := clientset.BatchV1().Jobs("default").Create(context.Background(), job_created, metav1.CreateOptions{})
+
+		log_err("Failed to create Job", err)
+	} else if action == "delete" {
+		events.Job_delete(logger, clientset, job.Name, "default")
+	} else if action == "update" {
+		events.Job_update(logger, clientset, job)
+	} else {
+		log_err(fmt.Sprintf("Unknown action: %s", action), fmt.Errorf(""))
+	}
+}
+
+func log_err(msg string, err error) {
+	if err != nil {
+		_, file, line, ok := runtime.Caller(1)
+		if !ok {
+			file = "???"
+			line = 0
+		}
+
+		logger.Error("❌ "+msg+err.Error(), slog.String("source", fmt.Sprintf("%s:%d", file, line)))
+		os.Exit(1)
+	}
+}

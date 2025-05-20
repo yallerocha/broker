@@ -8,3 +8,7 @@ type Workload struct {
 	Label        string
 	Annotations  map[string]string
 }
+
+type Config struct {
+	KubeConfig string `yaml:"kubeconfig"`
+}
