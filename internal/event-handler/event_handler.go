@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"runtime"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/cloud-ai-ufcg/broker/internal/events"
@@ -18,7 +18,6 @@ import (
 )
 
 var (
-	wg     sync.WaitGroup
 	logger *slog.Logger
 )
 
@@ -37,25 +36,24 @@ func Handler(config utils.Config, origin_data dataframe.DataFrame, default_logge
 		log_err("Failed to read the timestamp", err)
 
 		sleep_time(time_stamp, start_time)
-		wg.Add(1)
 
 		if strings.ToLower(kind) == "deployment" {
-			go deployment_action(clientset, df, i)
+			deployment_action(clientset, df, i)
 		} else if strings.ToLower(kind) == "job" {
-			go job_action(clientset, df, i)
+			job_action(clientset, df, i)
 		} else {
 			log_err(fmt.Sprintf("Unknown kind %s", kind), fmt.Errorf(""))
 		}
 
 	}
 
-	wg.Wait()
 }
 
 func sleep_time(time_stamp int, start_time time.Time) {
 	elapsed := time.Since(start_time)
 
-	if elapsed.Seconds() < float64(time_stamp) {
+	if int64(math.Ceil(elapsed.Seconds())) < int64(time_stamp) {
+		fmt.Println(int64(math.Ceil(elapsed.Seconds())), float64(time_stamp), elapsed.Seconds() < float64(time_stamp))
 		logger.Info(fmt.Sprintf("⏳ Waiting %d seconds", int64(time_stamp)))
 		time.Sleep(time.Duration(float64(time_stamp)-elapsed.Seconds()) * time.Second)
 	}
@@ -63,8 +61,6 @@ func sleep_time(time_stamp int, start_time time.Time) {
 }
 
 func deployment_action(clientset *kubernetes.Clientset, df dataframe.DataFrame, idx int) {
-	defer wg.Done()
-
 	replicas, _ := df.Col("replicas").Elem(idx).Int()
 	mem_formated := int64(df.Col("memory").Elem(idx).Float() * 1024)
 
@@ -97,8 +93,6 @@ func deployment_action(clientset *kubernetes.Clientset, df dataframe.DataFrame, 
 }
 
 func job_action(clientset *kubernetes.Clientset, df dataframe.DataFrame, idx int) {
-	defer wg.Done()
-
 	replicas, _ := df.Col("replicas").Elem(idx).Int()
 	mem_formated := int64(df.Col("memory").Elem(idx).Float() * 1024)
 
