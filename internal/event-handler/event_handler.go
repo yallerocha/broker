@@ -53,7 +53,6 @@ func sleep_time(time_stamp int, start_time time.Time) {
 	elapsed := time.Since(start_time)
 
 	if int64(math.Ceil(elapsed.Seconds())) < int64(time_stamp) {
-		fmt.Println(int64(math.Ceil(elapsed.Seconds())), float64(time_stamp), elapsed.Seconds() < float64(time_stamp))
 		logger.Info(fmt.Sprintf("⏳ Waiting %d seconds", int64(time_stamp)))
 		time.Sleep(time.Duration(float64(time_stamp)-elapsed.Seconds()) * time.Second)
 	}
