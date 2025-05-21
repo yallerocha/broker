@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
-	"os"
 	"runtime"
 	"strings"
 	"time"
@@ -132,7 +131,6 @@ func log_err(msg string, err error) {
 			line = 0
 		}
 
-		logger.Error("❌ "+msg+err.Error(), slog.String("source", fmt.Sprintf("%s:%d", file, line)))
-		os.Exit(1)
+		logger.Error("❌ "+msg+": "+err.Error(), slog.String("source", fmt.Sprintf("%s:%d", file, line)))
 	}
 }

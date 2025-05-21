@@ -2,9 +2,10 @@ package events
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"math"
-	"os"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -129,7 +130,12 @@ func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, data utils
 
 func exit_if_err(logger *slog.Logger, err error, msg string) {
 	if err != nil {
-		logger.Error("❌ " + msg + err.Error())
-		os.Exit(1)
+		_, file, line, ok := runtime.Caller(1)
+		if !ok {
+			file = "???"
+			line = 0
+		}
+
+		logger.Error("❌ "+msg+": "+err.Error(), slog.String("source", fmt.Sprintf("%s:%d", file, line)))
 	}
 }

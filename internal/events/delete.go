@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,7 +28,6 @@ func Deployment_delete(logger *slog.Logger, clientset *kubernetes.Clientset, nam
 
 	if err != nil {
 		logger.Error(fmt.Sprintf("❌ "+"Failed to Delete a Deployment. Name: %s", name))
-		os.Exit(1)
 	}
 }
 
@@ -54,6 +52,5 @@ func Job_delete(logger *slog.Logger, clientset *kubernetes.Clientset, name strin
 
 	if err != nil {
 		logger.Error("❌ " + fmt.Sprintf("Failed to Delete a Job. Name: %s", name))
-		os.Exit(1)
 	}
 }
