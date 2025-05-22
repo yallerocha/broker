@@ -47,7 +47,7 @@ func Deployment_create(data utils.Workload) *appv1.Deployment {
 						{
 							Name:    "busybox",
 							Image:   "busybox:latest",
-							Command: []string{"sh", "-c", "echo Hello World! && sleep 30"},
+							Command: []string{"sh", "-c", "while true; do echo running; sleep 10; done"},
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse(data.CpuRequested),
