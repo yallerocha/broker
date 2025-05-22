@@ -93,11 +93,12 @@ func deployment_action(clientset *kubernetes.Clientset, df dataframe.DataFrame, 
 func job_action(clientset *kubernetes.Clientset, df dataframe.DataFrame, idx int) {
 	replicas, _ := df.Col("replicas").Elem(idx).Int()
 	mem_formated := int64(df.Col("memory").Elem(idx).Float() * 1024)
+	cpu_formated, _ := df.Col("cpu").Elem(idx).Int()
 
 	job := utils.Workload{
 		Name:         df.Col("id").Elem(idx).String(),
 		Replicas:     int32(replicas),
-		CpuRequested: df.Col("cpu").Elem(idx).String(),
+		CpuRequested: fmt.Sprintf("%dm", cpu_formated),
 		MemRequested: fmt.Sprintf("%dMi", mem_formated),
 		Label:        df.Col("label").Elem(idx).String(),
 		Annotations: map[string]string{
