@@ -21,7 +21,7 @@ func GetClientSet(kubetype string) (*kubernetes.Clientset, error) {
 		os.Getenv("HOME"), ".kube", kubetype,
 	)
 
-	kubepath = kubepath
+	kubepath = kubeconfig
 
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 

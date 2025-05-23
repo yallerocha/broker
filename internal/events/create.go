@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"slices"
+	"strings"
 
 	appv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
@@ -20,9 +21,16 @@ import (
 )
 
 func Create_Workload(dynClient *dynamic.DynamicClient, data utils.Workload, group string, resource string, logger *slog.Logger) error {
+	var workload interface{}
 	namespace := "default"
 
-	deployJSON, err := json.Marshal(data)
+	if strings.ToLower(resource) == "deployment" {
+		workload = deployment_create(data)
+	} else if strings.ToLower(resource) == "job" {
+		workload = job_create(data)
+	}
+
+	deployJSON, err := json.Marshal(workload)
 	if err != nil {
 		return err
 	}
@@ -46,7 +54,7 @@ func Create_Workload(dynClient *dynamic.DynamicClient, data utils.Workload, grou
 	return nil
 }
 
-func Deployment_create(data utils.Workload) *appv1.Deployment {
+func deployment_create(data utils.Workload) *appv1.Deployment {
 
 	label := map[string]string{}
 
@@ -102,7 +110,7 @@ func Deployment_create(data utils.Workload) *appv1.Deployment {
 	return deployment
 }
 
-func Job_create(data utils.Workload) *batchv1.Job {
+func job_create(data utils.Workload) *batchv1.Job {
 
 	label := map[string]string{}
 
