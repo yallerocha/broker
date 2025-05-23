@@ -90,7 +90,7 @@ func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, dynamicCon
 		Job_delete(logger, clientset, data.Name, namespace)
 
 		time.Sleep(500 * time.Millisecond)
-		err := Create_Workload(dynamicContext, data, "batch", "job")
+		err := Create_Workload(dynamicContext, data, "batch", "jobs")
 
 		exit_if_err(logger, err, "Failed to update job")
 		return

@@ -23,9 +23,9 @@ func Create_Workload(dynClient *dynamic.DynamicClient, data utils.Workload, grou
 	var workload any
 	namespace := "default"
 
-	if strings.ToLower(resource) == "deployment" {
+	if strings.ToLower(resource) == "deployments" {
 		workload = deployment_create(data)
-	} else if strings.ToLower(resource) == "job" {
+	} else if strings.ToLower(resource) == "jobs" {
 		workload = job_create(data)
 	}
 
