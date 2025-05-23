@@ -1,18 +1,59 @@
 package events
 
 import (
+	"context"
+	"encoding/json"
 	"slices"
+	"strings"
 
 	appv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	resource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 
 	utils "github.com/cloud-ai-ufcg/broker/pkg/utils"
 )
 
-func Deployment_create(data utils.Workload) *appv1.Deployment {
+func Create_Workload(dynClient *dynamic.DynamicClient, data utils.Workload, group string, resource string) error {
+	var workload any
+	namespace := "default"
+
+	if strings.ToLower(resource) == "deployments" {
+		workload = deployment_create(data)
+	} else if strings.ToLower(resource) == "jobs" {
+		workload = job_create(data)
+	}
+
+	deployJSON, err := json.Marshal(workload)
+	if err != nil {
+		return err
+	}
+
+	unstructuredObj := &unstructured.Unstructured{}
+	if err := json.Unmarshal(deployJSON, unstructuredObj); err != nil {
+		return err
+	}
+
+	gvr := schema.GroupVersionResource{
+		Group:    group,
+		Version:  "v1",
+		Resource: resource,
+	}
+
+	_, err = dynClient.Resource(gvr).Namespace(namespace).Create(context.TODO(), unstructuredObj, v1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func deployment_create(data utils.Workload) *appv1.Deployment {
 
 	label := map[string]string{}
 
@@ -47,7 +88,7 @@ func Deployment_create(data utils.Workload) *appv1.Deployment {
 						{
 							Name:    "busybox",
 							Image:   "busybox:latest",
-							Command: []string{"sh", "-c", "echo Hello World! && sleep 30"},
+							Command: []string{"sh", "-c", "while true; do echo running; sleep 10; done"},
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse(data.CpuRequested),
@@ -62,10 +103,13 @@ func Deployment_create(data utils.Workload) *appv1.Deployment {
 		},
 	}
 
+	deployment.Kind = "Deployment"
+	deployment.APIVersion = "apps/v1"
+
 	return deployment
 }
 
-func Job_create(data utils.Workload) *batchv1.Job {
+func job_create(data utils.Workload) *batchv1.Job {
 
 	label := map[string]string{}
 
@@ -117,6 +161,9 @@ func Job_create(data utils.Workload) *batchv1.Job {
 			},
 		},
 	}
+
+	job.Kind = "Job"
+	job.APIVersion = "batch/v1"
 
 	return job
 }

@@ -1,7 +1,6 @@
 package eventhandler
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"math"
@@ -12,7 +11,7 @@ import (
 	"github.com/cloud-ai-ufcg/broker/internal/events"
 	"github.com/cloud-ai-ufcg/broker/pkg/utils"
 	"github.com/go-gota/gota/dataframe"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -22,6 +21,8 @@ var (
 
 func Handler(config utils.Config, origin_data dataframe.DataFrame, default_logger *slog.Logger) {
 	clientset, err := utils.GetClientSet(config.KubeConfig)
+	dynamicContext := utils.GetDynamicContext(default_logger)
+
 	logger = default_logger
 	log_err("Failed to get the client context", err)
 
@@ -37,9 +38,9 @@ func Handler(config utils.Config, origin_data dataframe.DataFrame, default_logge
 		sleep_time(time_stamp, start_time)
 
 		if strings.ToLower(kind) == "deployment" {
-			deployment_action(clientset, df, i)
+			deployment_action(clientset, dynamicContext, df, i)
 		} else if strings.ToLower(kind) == "job" {
-			job_action(clientset, df, i)
+			job_action(clientset, dynamicContext, df, i)
 		} else {
 			log_err(fmt.Sprintf("Unknown kind %s", kind), fmt.Errorf(""))
 		}
@@ -58,7 +59,7 @@ func sleep_time(time_stamp int, start_time time.Time) {
 
 }
 
-func deployment_action(clientset *kubernetes.Clientset, df dataframe.DataFrame, idx int) {
+func deployment_action(clientset *kubernetes.Clientset, dynamicContext *dynamic.DynamicClient, df dataframe.DataFrame, idx int) {
 	replicas, _ := df.Col("replicas").Elem(idx).Int()
 	mem_formated := int64(df.Col("memory").Elem(idx).Float() * 1024)
 
@@ -76,8 +77,7 @@ func deployment_action(clientset *kubernetes.Clientset, df dataframe.DataFrame, 
 
 	logger.Info(fmt.Sprintf("➡️ [%ss] [Deployment] %s: %s", df.Col("timestamp").Elem(idx).String(), strings.ToUpper(action), deployment.Name))
 	if action == "create" {
-		deployment_created := events.Deployment_create(deployment)
-		_, err := clientset.AppsV1().Deployments("default").Create(context.Background(), deployment_created, metav1.CreateOptions{})
+		err := events.Create_Workload(dynamicContext, deployment, "apps", "deployments")
 
 		log_err("Failed to create Deployment", err)
 	} else if action == "delete" {
@@ -90,14 +90,15 @@ func deployment_action(clientset *kubernetes.Clientset, df dataframe.DataFrame, 
 
 }
 
-func job_action(clientset *kubernetes.Clientset, df dataframe.DataFrame, idx int) {
+func job_action(clientset *kubernetes.Clientset, dynamicContext *dynamic.DynamicClient, df dataframe.DataFrame, idx int) {
 	replicas, _ := df.Col("replicas").Elem(idx).Int()
 	mem_formated := int64(df.Col("memory").Elem(idx).Float() * 1024)
+	cpu_formated, _ := df.Col("cpu").Elem(idx).Int()
 
 	job := utils.Workload{
 		Name:         df.Col("id").Elem(idx).String(),
 		Replicas:     int32(replicas),
-		CpuRequested: df.Col("cpu").Elem(idx).String(),
+		CpuRequested: fmt.Sprintf("%dm", cpu_formated),
 		MemRequested: fmt.Sprintf("%dMi", mem_formated),
 		Label:        df.Col("label").Elem(idx).String(),
 		Annotations: map[string]string{
@@ -110,14 +111,13 @@ func job_action(clientset *kubernetes.Clientset, df dataframe.DataFrame, idx int
 
 	logger.Info(fmt.Sprintf("➡️ [%ss] [Job] %s: %s", df.Col("timestamp").Elem(idx).String(), strings.ToUpper(action), job.Name))
 	if action == "create" {
-		job_created := events.Job_create(job)
-		_, err := clientset.BatchV1().Jobs("default").Create(context.Background(), job_created, metav1.CreateOptions{})
+		err := events.Create_Workload(dynamicContext, job, "batch", "jobs")
 
 		log_err("Failed to create Job", err)
 	} else if action == "delete" {
 		events.Job_delete(logger, clientset, job.Name, "default")
 	} else if action == "update" {
-		events.Job_update(logger, clientset, job)
+		events.Job_update(logger, clientset, dynamicContext, job)
 	} else {
 		log_err(fmt.Sprintf("Unknown action: %s", action), fmt.Errorf(""))
 	}

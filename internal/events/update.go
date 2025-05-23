@@ -16,6 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -65,7 +66,7 @@ func Deployment_update(logger *slog.Logger, clientset *kubernetes.Clientset, dat
 	return update
 }
 
-func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, data utils.Workload) {
+func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, dynamicContext *dynamic.DynamicClient, data utils.Workload) {
 	namespace := "default"
 
 	job, err := clientset.BatchV1().Jobs(namespace).Get(context.TODO(), data.Name, meta.GetOptions{})
@@ -89,11 +90,9 @@ func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, data utils
 		Job_delete(logger, clientset, data.Name, namespace)
 
 		time.Sleep(500 * time.Millisecond)
-		job_created := Job_create(data)
+		err := Create_Workload(dynamicContext, data, "batch", "jobs")
 
-		_, err := clientset.BatchV1().Jobs(namespace).Create(context.TODO(), job_created, meta.CreateOptions{})
 		exit_if_err(logger, err, "Failed to update job")
-
 		return
 	}
 
