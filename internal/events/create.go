@@ -1,6 +1,9 @@
 package events
 
 import (
+	"context"
+	"encoding/json"
+	"log/slog"
 	"slices"
 
 	appv1 "k8s.io/api/apps/v1"
@@ -8,9 +11,40 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	resource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 
 	utils "github.com/cloud-ai-ufcg/broker/pkg/utils"
 )
+
+func Create_Workload(dynClient *dynamic.DynamicClient, data utils.Workload, group string, resource string, logger *slog.Logger) error {
+	namespace := "default"
+
+	deployJSON, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	unstructuredObj := &unstructured.Unstructured{}
+	if err := json.Unmarshal(deployJSON, unstructuredObj); err != nil {
+		return err
+	}
+
+	gvr := schema.GroupVersionResource{
+		Group:    group,
+		Version:  "v1",
+		Resource: resource,
+	}
+
+	_, err = dynClient.Resource(gvr).Namespace(namespace).Create(context.TODO(), unstructuredObj, v1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func Deployment_create(data utils.Workload) *appv1.Deployment {
 
@@ -61,6 +95,9 @@ func Deployment_create(data utils.Workload) *appv1.Deployment {
 			},
 		},
 	}
+
+	deployment.Kind = "Deployment"
+	deployment.APIVersion = "apps/v1"
 
 	return deployment
 }
@@ -117,6 +154,9 @@ func Job_create(data utils.Workload) *batchv1.Job {
 			},
 		},
 	}
+
+	job.Kind = "Job"
+	job.APIVersion = "batch/v1"
 
 	return job
 }
