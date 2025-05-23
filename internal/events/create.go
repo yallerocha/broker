@@ -3,7 +3,6 @@ package events
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
 	"slices"
 	"strings"
 
@@ -20,8 +19,8 @@ import (
 	utils "github.com/cloud-ai-ufcg/broker/pkg/utils"
 )
 
-func Create_Workload(dynClient *dynamic.DynamicClient, data utils.Workload, group string, resource string, logger *slog.Logger) error {
-	var workload interface{}
+func Create_Workload(dynClient *dynamic.DynamicClient, data utils.Workload, group string, resource string) error {
+	var workload any
 	namespace := "default"
 
 	if strings.ToLower(resource) == "deployment" {

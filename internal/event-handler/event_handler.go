@@ -77,7 +77,7 @@ func deployment_action(clientset *kubernetes.Clientset, dynamicContext *dynamic.
 
 	logger.Info(fmt.Sprintf("➡️ [%ss] [Deployment] %s: %s", df.Col("timestamp").Elem(idx).String(), strings.ToUpper(action), deployment.Name))
 	if action == "create" {
-		err := events.Create_Workload(dynamicContext, deployment, "apps", "deployment", logger)
+		err := events.Create_Workload(dynamicContext, deployment, "apps", "deployment")
 
 		log_err("Failed to create Deployment", err)
 	} else if action == "delete" {
@@ -111,13 +111,13 @@ func job_action(clientset *kubernetes.Clientset, dynamicContext *dynamic.Dynamic
 
 	logger.Info(fmt.Sprintf("➡️ [%ss] [Job] %s: %s", df.Col("timestamp").Elem(idx).String(), strings.ToUpper(action), job.Name))
 	if action == "create" {
-		err := events.Create_Workload(dynamicContext, job, "batch", "job", logger)
+		err := events.Create_Workload(dynamicContext, job, "batch", "job")
 
 		log_err("Failed to create Job", err)
 	} else if action == "delete" {
 		events.Job_delete(logger, clientset, job.Name, "default")
 	} else if action == "update" {
-		events.Job_update(logger, clientset, job)
+		events.Job_update(logger, clientset, dynamicContext, job)
 	} else {
 		log_err(fmt.Sprintf("Unknown action: %s", action), fmt.Errorf(""))
 	}
