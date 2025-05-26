@@ -19,6 +19,8 @@ var (
 	logger *slog.Logger
 )
 
+// Entrypoint to run the event handler.
+// It receives a config 'struct' and a dataframe containing the data
 func Handler(config utils.Config, origin_data dataframe.DataFrame, default_logger *slog.Logger) {
 	clientset, err := utils.GetClientSet(config.KubeConfig)
 	dynamicContext := utils.GetDynamicContext(default_logger)
@@ -49,6 +51,8 @@ func Handler(config utils.Config, origin_data dataframe.DataFrame, default_logge
 
 }
 
+// Apply the sleep time to an execution time less then the 'time stamp'
+// Receives the current time stamp in the dataframe and the start time.
 func sleep_time(time_stamp int, start_time time.Time) {
 	elapsed := time.Since(start_time)
 
@@ -59,6 +63,9 @@ func sleep_time(time_stamp int, start_time time.Time) {
 
 }
 
+// Execute the action required for each deployment
+// Receives the clientset and dynamicContext for requests,
+// a df containing the data and an idx that represents the index of this workload.
 func deployment_action(clientset *kubernetes.Clientset, dynamicContext *dynamic.DynamicClient, df dataframe.DataFrame, idx int) {
 	replicas, _ := df.Col("replicas").Elem(idx).Int()
 	mem_formated := int64(df.Col("memory").Elem(idx).Float() * 1024)
@@ -90,6 +97,9 @@ func deployment_action(clientset *kubernetes.Clientset, dynamicContext *dynamic.
 
 }
 
+// Execute the action required for each deployment
+// Receives the clientset and dynamicContext for requests,
+// a df containing the data and an idx that represents the index of this workload.
 func job_action(clientset *kubernetes.Clientset, dynamicContext *dynamic.DynamicClient, df dataframe.DataFrame, idx int) {
 	replicas, _ := df.Col("replicas").Elem(idx).Int()
 	mem_formated := int64(df.Col("memory").Elem(idx).Float() * 1024)
@@ -123,6 +133,7 @@ func job_action(clientset *kubernetes.Clientset, dynamicContext *dynamic.Dynamic
 	}
 }
 
+// Define a function to loggers.
 func log_err(msg string, err error) {
 	if err != nil {
 		_, file, line, ok := runtime.Caller(1)

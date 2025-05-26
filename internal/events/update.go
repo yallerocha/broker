@@ -20,6 +20,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// Update the deployment using a clientset.
+// Receives a logger, the data representing a workload.
 func Deployment_update(logger *slog.Logger, clientset *kubernetes.Clientset, data utils.Workload) *v1.Deployment {
 	namespace := "default"
 
@@ -66,6 +68,9 @@ func Deployment_update(logger *slog.Logger, clientset *kubernetes.Clientset, dat
 	return update
 }
 
+// Update the Job using a dynamicContext.
+// Receives a logger, the data representing a workload.
+// If has any difference the job will be recreated.
 func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, dynamicContext *dynamic.DynamicClient, data utils.Workload) {
 	namespace := "default"
 

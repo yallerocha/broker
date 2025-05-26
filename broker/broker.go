@@ -21,6 +21,7 @@ func Run(event_data *os.File, config_yaml *os.File) {
 	eventhandler.Handler(config, df, DefaultLogger)
 }
 
+// Process the parameters passed by the main script.
 func process_parameters(event_data *os.File, config_yaml *os.File) (utils.Config, dataframe.DataFrame) {
 	config := process_yaml(config_yaml)
 	df := process_csv(event_data)
@@ -29,6 +30,8 @@ func process_parameters(event_data *os.File, config_yaml *os.File) (utils.Config
 
 }
 
+// Uses the 'struct' defined in the models.go
+// to convert the yaml to Config
 func process_yaml(config_yaml *os.File) utils.Config {
 	var out utils.Config
 	decoder := yaml.NewDecoder(config_yaml)
@@ -39,11 +42,13 @@ func process_yaml(config_yaml *os.File) utils.Config {
 	return out
 }
 
+// Uses the dataframe module to process the event_data to a dataframe
 func process_csv(event_data *os.File) dataframe.DataFrame {
 	df := dataframe.ReadCSV(event_data)
 	return df
 }
 
+// Set the logger
 func log_setting() {
 	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})
 

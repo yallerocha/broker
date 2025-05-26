@@ -19,6 +19,9 @@ import (
 	utils "github.com/cloud-ai-ufcg/broker/pkg/utils"
 )
 
+// Submit the workload using the dynamic client.
+// Receives a dynamic client, a data struct representing
+// the workload to submit, a resource to define the data type.
 func Create_Workload(dynClient *dynamic.DynamicClient, data utils.Workload, group string, resource string) error {
 	var workload any
 	namespace := "default"
@@ -53,6 +56,7 @@ func Create_Workload(dynClient *dynamic.DynamicClient, data utils.Workload, grou
 	return nil
 }
 
+// Prepare a Deployment type for submition.
 func deployment_create(data utils.Workload) *appv1.Deployment {
 
 	label := map[string]string{}
@@ -109,6 +113,7 @@ func deployment_create(data utils.Workload) *appv1.Deployment {
 	return deployment
 }
 
+// Prepare a Job type for submition.
 func job_create(data utils.Workload) *batchv1.Job {
 
 	label := map[string]string{}

@@ -35,6 +35,9 @@ func GetClientSet(kubetype string) (*kubernetes.Clientset, error) {
 	return kubernetes.NewForConfig(config)
 }
 
+// Gets the current kube context, it must be a valid context to submit
+// the actions.
+// receives a string that represents the context defined in the config file.
 func GetDynamicContext(logger *slog.Logger) *dynamic.DynamicClient {
 	config, err := clientcmd.BuildConfigFromFlags("", kubepath)
 	if err != nil {
