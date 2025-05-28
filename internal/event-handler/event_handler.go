@@ -88,7 +88,9 @@ func deployment_action(clientset *kubernetes.Clientset, dynamicContext *dynamic.
 
 		log_err("Failed to create Deployment", err)
 	} else if action == "delete" {
-		events.Deployment_delete(logger, dynamicContext, deployment.Name, "default")
+		err := events.Deployment_delete(logger, dynamicContext, deployment.Name, "default")
+
+		log_err("Failed to delete Deployment", err)
 	} else if action == "update" {
 		events.Deployment_update(logger, clientset, deployment)
 	} else {
@@ -125,7 +127,9 @@ func job_action(clientset *kubernetes.Clientset, dynamicContext *dynamic.Dynamic
 
 		log_err("Failed to create Job", err)
 	} else if action == "delete" {
-		events.Job_delete(logger, dynamicContext, job.Name, "default")
+		err := events.Job_delete(logger, dynamicContext, job.Name, "default")
+
+		log_err("Failed to delete Job", err)
 	} else if action == "update" {
 		events.Job_update(logger, clientset, dynamicContext, job)
 	} else {

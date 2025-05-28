@@ -2,7 +2,6 @@ package events
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -16,7 +15,7 @@ import (
 // - clientset: Kubernetes clientset used to perform the deletation
 // - name: Name of the Deployment to delete
 // - namespace: Namespace where the deployment resides
-func Deployment_delete(logger *slog.Logger, dynClient *dynamic.DynamicClient, name string, namespace string) {
+func Deployment_delete(logger *slog.Logger, dynClient *dynamic.DynamicClient, name string, namespace string) error {
 	deletePolicy := metav1.DeletePropagationForeground
 
 	gvr := schema.GroupVersionResource{
@@ -33,9 +32,7 @@ func Deployment_delete(logger *slog.Logger, dynClient *dynamic.DynamicClient, na
 		},
 	)
 
-	if err != nil {
-		logger.Error(fmt.Sprintf("❌ "+"Failed to Delete a Deployment. Error %s", err.Error()))
-	}
+	return err
 }
 
 // Delete a job with the given name in the specified namespace
@@ -43,7 +40,7 @@ func Deployment_delete(logger *slog.Logger, dynClient *dynamic.DynamicClient, na
 // - clientset: Kubernetes dynamic client used to perform the deletation
 // - name: Name of the job to delete
 // - namespace: Namespace where the job resides
-func Job_delete(logger *slog.Logger, dynClient *dynamic.DynamicClient, name string, namespace string) {
+func Job_delete(logger *slog.Logger, dynClient *dynamic.DynamicClient, name string, namespace string) error {
 	deletePolicy := metav1.DeletePropagationForeground
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -63,7 +60,5 @@ func Job_delete(logger *slog.Logger, dynClient *dynamic.DynamicClient, name stri
 		},
 	)
 
-	if err != nil {
-		logger.Error("❌ " + fmt.Sprintf("Failed to Delete a Job. Name: %s", name))
-	}
+	return err
 }
