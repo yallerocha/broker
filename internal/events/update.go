@@ -92,7 +92,7 @@ func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, dynamicCon
 	hasDiff := currentCpu != newCpu.MilliValue() || math.Abs(newMemConverted-float64(currentMem)) > 0.0001 || *job.Spec.Completions != data.Replicas
 
 	if hasDiff {
-		Job_delete(logger, clientset, data.Name, namespace)
+		Job_delete(logger, dynamicContext, data.Name, namespace)
 
 		time.Sleep(500 * time.Millisecond)
 		err := Create_Workload(dynamicContext, data, "batch", "jobs")
