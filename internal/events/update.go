@@ -3,7 +3,6 @@ package events
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"math"
 	"slices"
 	"strconv"
@@ -21,12 +20,11 @@ import (
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 )
 
 // Update the deployment using a clientset.
-// Receives a logger, the data representing a workload.
-func Deployment_update(logger *slog.Logger, dynamicContext *dynamic.DynamicClient, data utils.Workload) error {
+// Receives the data representing a workload.
+func Deployment_update(dynamicContext *dynamic.DynamicClient, data utils.Workload) error {
 	namespace := "default"
 
 	gvr := schema.GroupVersionResource{
@@ -100,7 +98,7 @@ func Deployment_update(logger *slog.Logger, dynamicContext *dynamic.DynamicClien
 // Update the Job using a dynamicContext.
 // Receives a logger, the data representing a workload.
 // If has any difference the job will be recreated.
-func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, dynamicContext *dynamic.DynamicClient, data utils.Workload) error {
+func Job_update(dynamicContext *dynamic.DynamicClient, data utils.Workload) error {
 	namespace := "default"
 	deletion_timeout := 5
 
@@ -143,7 +141,7 @@ func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, dynamicCon
 
 	if hasDiff {
 
-		if err := Job_delete(logger, dynamicContext, data.Name, namespace); err != nil {
+		if err := Job_delete(dynamicContext, data.Name, namespace); err != nil {
 			return err
 		}
 

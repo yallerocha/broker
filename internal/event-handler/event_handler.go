@@ -12,7 +12,6 @@ import (
 	"github.com/cloud-ai-ufcg/broker/pkg/utils"
 	"github.com/go-gota/gota/dataframe"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 )
 
 var (
@@ -22,7 +21,7 @@ var (
 // Entrypoint to run the event handler.
 // It receives a config 'struct' and a dataframe containing the data
 func Handler(config utils.Config, origin_data dataframe.DataFrame, default_logger *slog.Logger) {
-	clientset, err := utils.GetClientSet(config.KubeConfig)
+	_, err := utils.GetClientSet(config.KubeConfig)
 	dynamicContext := utils.GetDynamicContext(default_logger)
 
 	logger = default_logger
@@ -40,9 +39,9 @@ func Handler(config utils.Config, origin_data dataframe.DataFrame, default_logge
 		sleep_time(time_stamp, start_time)
 
 		if strings.ToLower(kind) == "deployment" {
-			deployment_action(clientset, dynamicContext, df, i)
+			deployment_action(dynamicContext, df, i)
 		} else if strings.ToLower(kind) == "job" {
-			job_action(clientset, dynamicContext, df, i)
+			job_action(dynamicContext, df, i)
 		} else {
 			log_err(fmt.Sprintf("Unknown kind %s", kind), fmt.Errorf(""))
 		}
@@ -66,7 +65,7 @@ func sleep_time(time_stamp int, start_time time.Time) {
 // Execute the action required for each deployment
 // Receives the clientset and dynamicContext for requests,
 // a df containing the data and an idx that represents the index of this workload.
-func deployment_action(clientset *kubernetes.Clientset, dynamicContext *dynamic.DynamicClient, df dataframe.DataFrame, idx int) {
+func deployment_action(dynamicContext *dynamic.DynamicClient, df dataframe.DataFrame, idx int) {
 	replicas, _ := df.Col("replicas").Elem(idx).Int()
 	mem_formated := int64(df.Col("memory").Elem(idx).Float() * 1024)
 
@@ -88,11 +87,11 @@ func deployment_action(clientset *kubernetes.Clientset, dynamicContext *dynamic.
 
 		log_err("Failed to create Deployment", err)
 	} else if action == "delete" {
-		err := events.Deployment_delete(logger, dynamicContext, deployment.Name, "default")
+		err := events.Deployment_delete(dynamicContext, deployment.Name, "default")
 
 		log_err("Failed to delete Deployment", err)
 	} else if action == "update" {
-		err := events.Deployment_update(logger, dynamicContext, deployment)
+		err := events.Deployment_update(dynamicContext, deployment)
 
 		log_err("Failed to update Deployment", err)
 	} else {
@@ -104,7 +103,7 @@ func deployment_action(clientset *kubernetes.Clientset, dynamicContext *dynamic.
 // Execute the action required for each deployment
 // Receives the clientset and dynamicContext for requests,
 // a df containing the data and an idx that represents the index of this workload.
-func job_action(clientset *kubernetes.Clientset, dynamicContext *dynamic.DynamicClient, df dataframe.DataFrame, idx int) {
+func job_action(dynamicContext *dynamic.DynamicClient, df dataframe.DataFrame, idx int) {
 	replicas, _ := df.Col("replicas").Elem(idx).Int()
 	mem_formated := int64(df.Col("memory").Elem(idx).Float() * 1024)
 	cpu_formated, _ := df.Col("cpu").Elem(idx).Int()
@@ -129,11 +128,13 @@ func job_action(clientset *kubernetes.Clientset, dynamicContext *dynamic.Dynamic
 
 		log_err("Failed to create Job", err)
 	} else if action == "delete" {
-		err := events.Job_delete(logger, dynamicContext, job.Name, "default")
+		err := events.Job_delete(dynamicContext, job.Name, "default")
 
 		log_err("Failed to delete Job", err)
 	} else if action == "update" {
-		events.Job_update(logger, clientset, dynamicContext, job)
+		err := events.Job_update(dynamicContext, job)
+
+		log_err("Failed to update Job", err)
 	} else {
 		log_err(fmt.Sprintf("Unknown action: %s", action), fmt.Errorf(""))
 	}
