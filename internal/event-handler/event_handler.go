@@ -92,7 +92,9 @@ func deployment_action(clientset *kubernetes.Clientset, dynamicContext *dynamic.
 
 		log_err("Failed to delete Deployment", err)
 	} else if action == "update" {
-		events.Deployment_update(logger, clientset, deployment)
+		err := events.Deployment_update(logger, dynamicContext, deployment)
+
+		log_err("Failed to update Deployment", err)
 	} else {
 		log_err(fmt.Sprintf("Unknown action: %s", action), fmt.Errorf(""))
 	}

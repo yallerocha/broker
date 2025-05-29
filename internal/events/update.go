@@ -16,17 +16,35 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apiruntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 )
 
 // Update the deployment using a clientset.
 // Receives a logger, the data representing a workload.
-func Deployment_update(logger *slog.Logger, clientset *kubernetes.Clientset, data utils.Workload) *v1.Deployment {
+func Deployment_update(logger *slog.Logger, dynamicContext *dynamic.DynamicClient, data utils.Workload) error {
 	namespace := "default"
 
-	deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.TODO(), data.Name, meta.GetOptions{})
-	exit_if_err(logger, err, "Failed to get deployment")
+	gvr := schema.GroupVersionResource{
+		Group:    "apps",
+		Version:  "v1",
+		Resource: "deployments",
+	}
+
+	// get deployment as Unstructured
+	unstr, err := dynamicContext.Resource(gvr).Namespace(namespace).Get(context.TODO(), data.Name, meta.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	// convert Unstructured to typed Deployment
+	var deployment v1.Deployment
+	err = apiruntime.DefaultUnstructuredConverter.FromUnstructured(unstr.Object, &deployment)
+	if err != nil {
+		return err
+	}
 
 	// resource update in each container
 
@@ -60,12 +78,21 @@ func Deployment_update(logger *slog.Logger, clientset *kubernetes.Clientset, dat
 		deployment.ObjectMeta.Annotations["clusterpropagationpolicy.karmada.io/name"] = "deploy-" + label
 	}
 
-	// apply the update
+	// convert to Unstructured
+	objMap, err := apiruntime.DefaultUnstructuredConverter.ToUnstructured(&deployment)
+	if err != nil {
+		return err
+	}
+	unstr.Object = objMap
 
-	update, err := clientset.AppsV1().Deployments(namespace).Update(context.TODO(), deployment, meta.UpdateOptions{})
-	exit_if_err(logger, err, "Failed to update deployment")
+	// apply update
+	_, err = dynamicContext.Resource(gvr).Namespace(namespace).Update(context.TODO(), unstr, meta.UpdateOptions{})
 
-	return update
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Update the Job using a dynamicContext.
