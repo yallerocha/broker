@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -101,7 +100,7 @@ func Deployment_update(logger *slog.Logger, dynamicContext *dynamic.DynamicClien
 // Update the Job using a dynamicContext.
 // Receives a logger, the data representing a workload.
 // If has any difference the job will be recreated.
-func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, dynamicContext *dynamic.DynamicClient, data utils.Workload) {
+func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, dynamicContext *dynamic.DynamicClient, data utils.Workload) error {
 	namespace := "default"
 	deletion_timeout := 5
 
@@ -113,12 +112,18 @@ func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, dynamicCon
 
 	// get Job as Unstructured
 	unstr, err := dynamicContext.Resource(gvr).Namespace(namespace).Get(context.TODO(), data.Name, metav1.GetOptions{})
-	exit_if_err(logger, err, "Failed to get job")
+
+	if err != nil {
+		return err
+	}
 
 	// convert to batchv1.Job
 	var job batchv1.Job
 	err = apiruntime.DefaultUnstructuredConverter.FromUnstructured(unstr.Object, &job)
-	exit_if_err(logger, err, "Failed to convert job")
+
+	if err != nil {
+		return err
+	}
 
 	// recreate if has difference
 
@@ -130,21 +135,23 @@ func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, dynamicCon
 	newMem := strings.Split(data.MemRequested, "Mi")
 	newMemConverted, err := strconv.ParseFloat(newMem[0], 64)
 
-	exit_if_err(logger, err, "Failed during convert process")
+	if err != nil {
+		return err
+	}
 
 	hasDiff := currentCpu != newCpu.MilliValue() || math.Abs(newMemConverted-float64(currentMem)) > 0.0001 || *job.Spec.Completions != data.Replicas
 
 	if hasDiff {
-		err := Job_delete(logger, dynamicContext, data.Name, namespace)
-		exit_if_err(logger, err, "Failed to Delete")
 
-		err = waitForJobDeletion(dynamicContext, data.Name, namespace, time.Duration(deletion_timeout))
-		exit_if_err(logger, err, "Failed to update job")
+		if err := Job_delete(logger, dynamicContext, data.Name, namespace); err != nil {
+			return err
+		}
 
-		err = Create_Workload(dynamicContext, data, "batch", "jobs")
+		if err := waitForJobDeletion(dynamicContext, data.Name, namespace, time.Duration(deletion_timeout)); err != nil {
+			return err
+		}
 
-		exit_if_err(logger, err, "Failed to update job")
-		return
+		return Create_Workload(dynamicContext, data, "batch", "jobs")
 	}
 
 	// update the annotations and labels
@@ -175,13 +182,17 @@ func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, dynamicCon
 	// perform the update
 
 	objMap, err := apiruntime.DefaultUnstructuredConverter.ToUnstructured(&job)
-	exit_if_err(logger, err, "Failed to convert job back to unstructured")
+
+	if err != nil {
+		return err
+	}
+
 	unstr.Object = objMap
 
 	// apply update using dynamic client
 	_, err = dynamicContext.Resource(gvr).Namespace(namespace).Update(context.TODO(), unstr, metav1.UpdateOptions{})
-	exit_if_err(logger, err, "Failed to update job")
 
+	return err
 }
 
 // Wait for total job deletion.
@@ -209,17 +220,5 @@ func waitForJobDeletion(dynamicClient dynamic.Interface, name string, namespace 
 		}
 
 		time.Sleep(200 * time.Millisecond)
-	}
-}
-
-func exit_if_err(logger *slog.Logger, err error, msg string) {
-	if err != nil {
-		_, file, line, ok := runtime.Caller(1)
-		if !ok {
-			file = "???"
-			line = 0
-		}
-
-		logger.Error("❌ "+msg+": "+err.Error(), slog.String("source", fmt.Sprintf("%s:%d", file, line)))
 	}
 }
