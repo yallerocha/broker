@@ -13,9 +13,12 @@ import (
 
 	"github.com/cloud-ai-ufcg/broker/pkg/utils"
 	v1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	meta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	apiruntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -34,7 +37,7 @@ func Deployment_update(logger *slog.Logger, dynamicContext *dynamic.DynamicClien
 	}
 
 	// get deployment as Unstructured
-	unstr, err := dynamicContext.Resource(gvr).Namespace(namespace).Get(context.TODO(), data.Name, meta.GetOptions{})
+	unstr, err := dynamicContext.Resource(gvr).Namespace(namespace).Get(context.TODO(), data.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -86,7 +89,7 @@ func Deployment_update(logger *slog.Logger, dynamicContext *dynamic.DynamicClien
 	unstr.Object = objMap
 
 	// apply update
-	_, err = dynamicContext.Resource(gvr).Namespace(namespace).Update(context.TODO(), unstr, meta.UpdateOptions{})
+	_, err = dynamicContext.Resource(gvr).Namespace(namespace).Update(context.TODO(), unstr, metav1.UpdateOptions{})
 
 	if err != nil {
 		return err
@@ -100,9 +103,22 @@ func Deployment_update(logger *slog.Logger, dynamicContext *dynamic.DynamicClien
 // If has any difference the job will be recreated.
 func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, dynamicContext *dynamic.DynamicClient, data utils.Workload) {
 	namespace := "default"
+	deletion_timeout := 5
 
-	job, err := clientset.BatchV1().Jobs(namespace).Get(context.TODO(), data.Name, meta.GetOptions{})
+	gvr := schema.GroupVersionResource{
+		Group:    "batch",
+		Version:  "v1",
+		Resource: "jobs",
+	}
+
+	// get Job as Unstructured
+	unstr, err := dynamicContext.Resource(gvr).Namespace(namespace).Get(context.TODO(), data.Name, metav1.GetOptions{})
 	exit_if_err(logger, err, "Failed to get job")
+
+	// convert to batchv1.Job
+	var job batchv1.Job
+	err = apiruntime.DefaultUnstructuredConverter.FromUnstructured(unstr.Object, &job)
+	exit_if_err(logger, err, "Failed to convert job")
 
 	// recreate if has difference
 
@@ -119,10 +135,13 @@ func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, dynamicCon
 	hasDiff := currentCpu != newCpu.MilliValue() || math.Abs(newMemConverted-float64(currentMem)) > 0.0001 || *job.Spec.Completions != data.Replicas
 
 	if hasDiff {
-		Job_delete(logger, dynamicContext, data.Name, namespace)
+		err := Job_delete(logger, dynamicContext, data.Name, namespace)
+		exit_if_err(logger, err, "Failed to Delete")
 
-		time.Sleep(500 * time.Millisecond)
-		err := Create_Workload(dynamicContext, data, "batch", "jobs")
+		err = waitForJobDeletion(dynamicContext, data.Name, namespace, time.Duration(deletion_timeout))
+		exit_if_err(logger, err, "Failed to update job")
+
+		err = Create_Workload(dynamicContext, data, "batch", "jobs")
 
 		exit_if_err(logger, err, "Failed to update job")
 		return
@@ -153,10 +172,44 @@ func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, dynamicCon
 		job.ObjectMeta.Annotations["pod-complete.stage.kwok.x-k8s.io/delay"] = data.Annotations["pod-complete.stage.kwok.x-k8s.io/delay"]
 	}
 
-	// Perform the update
+	// perform the update
 
-	_, err = clientset.BatchV1().Jobs(namespace).Update(context.TODO(), job, meta.UpdateOptions{})
+	objMap, err := apiruntime.DefaultUnstructuredConverter.ToUnstructured(&job)
+	exit_if_err(logger, err, "Failed to convert job back to unstructured")
+	unstr.Object = objMap
+
+	// apply update using dynamic client
+	_, err = dynamicContext.Resource(gvr).Namespace(namespace).Update(context.TODO(), unstr, metav1.UpdateOptions{})
 	exit_if_err(logger, err, "Failed to update job")
+
+}
+
+// Wait for total job deletion.
+// Receives a dynamic context, the name of the job, the namespace and the timeout for limiting this wait.
+func waitForJobDeletion(dynamicClient dynamic.Interface, name string, namespace string, timeout time.Duration) error {
+	gvr := schema.GroupVersionResource{Group: "batch", Version: "v1", Resource: "jobs"}
+	start := time.Now()
+
+	for {
+		_, err := dynamicClient.Resource(gvr).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+
+		// if the job is already deleted
+		if meta.IsNoMatchError(err) || k8serrors.IsNotFound(err) {
+			return nil
+		}
+
+		// if another error appears during execution
+		if err != nil && !strings.Contains(err.Error(), "being deleted") {
+			return fmt.Errorf("unexpected error while waiting for deletion: %w", err)
+		}
+
+		// timeout
+		if time.Duration(time.Since(start).Seconds()) > time.Duration(timeout.Seconds()) {
+			return fmt.Errorf("timeout (%d s) while waiting for job %s deletion", int(timeout.Seconds()), name)
+		}
+
+		time.Sleep(200 * time.Millisecond)
+	}
 }
 
 func exit_if_err(logger *slog.Logger, err error, msg string) {
