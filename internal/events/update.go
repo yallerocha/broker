@@ -125,19 +125,11 @@ func Job_update(dynamicContext *dynamic.DynamicClient, data utils.Workload) erro
 
 	// recreate if has difference
 
-	container_resource := job.Spec.Template.Spec.Containers[0]
-	currentCpu := container_resource.Resources.Requests.Cpu().MilliValue()
-	currentMem := container_resource.Resources.Requests.Memory().Value() / (1024 * 1024)
-
-	newCpu := resource.MustParse(data.CpuRequested)
-	newMem := strings.Split(data.MemRequested, "Mi")
-	newMemConverted, err := strconv.ParseFloat(newMem[0], 64)
+	hasDiff, err := check_has_diff(job, data)
 
 	if err != nil {
 		return err
 	}
-
-	hasDiff := currentCpu != newCpu.MilliValue() || math.Abs(newMemConverted-float64(currentMem)) > 0.0001 || *job.Spec.Completions != data.Replicas
 
 	if hasDiff {
 
@@ -191,6 +183,27 @@ func Job_update(dynamicContext *dynamic.DynamicClient, data utils.Workload) erro
 	_, err = dynamicContext.Resource(gvr).Namespace(namespace).Update(context.TODO(), unstr, metav1.UpdateOptions{})
 
 	return err
+}
+
+// Check if the job update will modify its resources
+// Return a bool (true if yes, false if not) and an error type.
+func check_has_diff(job batchv1.Job, data utils.Workload) (bool, error) {
+
+	container_resource := job.Spec.Template.Spec.Containers[0]
+	currentCpu := container_resource.Resources.Requests.Cpu().MilliValue()
+	currentMem := container_resource.Resources.Requests.Memory().Value() / (1024 * 1024)
+
+	newCpu := resource.MustParse(data.CpuRequested)
+	newMem := strings.Split(data.MemRequested, "Mi")
+	newMemConverted, err := strconv.ParseFloat(newMem[0], 64)
+
+	if err != nil {
+		return false, err
+	}
+
+	hasDiff := currentCpu != newCpu.MilliValue() || math.Abs(newMemConverted-float64(currentMem)) > 0.0001 || *job.Spec.Completions != data.Replicas
+
+	return hasDiff, nil
 }
 
 // Wait for total job deletion.
