@@ -48,8 +48,10 @@ func sleep_time(time_stamp int, start_time time.Time) {
 	elapsed := time.Since(start_time)
 
 	if int64(math.Ceil(elapsed.Seconds())) < int64(time_stamp) {
-		utils.Log_info(fmt.Sprintf("⏳ Waiting %d seconds", int64(float64(time_stamp)-elapsed.Seconds())))
-		time.Sleep(time.Duration(float64(time_stamp)-elapsed.Seconds()) * time.Second)
+		time_wait := float64(time_stamp) - elapsed.Seconds()
+
+		utils.Log_info(fmt.Sprintf("⏳ Waiting %d seconds", int64(time_wait)))
+		time.Sleep(time.Duration(time_wait) * time.Second)
 	}
 
 }
