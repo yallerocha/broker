@@ -24,7 +24,7 @@ import (
 // the workload to submit, a resource to define the data type.
 func Create_Workload(dynClient *dynamic.DynamicClient, data utils.Workload, group string, resource string) error {
 	var workload any
-	namespace := "default"
+	namespace := utils.Get_context_namespace()
 
 	if err := validate_workload_parameter(group, resource); err != nil {
 		return err

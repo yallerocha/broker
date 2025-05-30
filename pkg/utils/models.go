@@ -11,4 +11,5 @@ type Workload struct {
 
 type Config struct {
 	KubeConfig string `yaml:"kubeconfig"`
+	Namespace  string `yaml:"namespace"`
 }

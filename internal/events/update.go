@@ -25,7 +25,7 @@ import (
 // Update the deployment using a clientset.
 // Receives the data representing a workload.
 func Deployment_update(dynamicContext *dynamic.DynamicClient, data utils.Workload) error {
-	namespace := "default"
+	namespace := utils.Get_context_namespace()
 
 	gvr := schema.GroupVersionResource{
 		Group:    "apps",
@@ -99,7 +99,7 @@ func Deployment_update(dynamicContext *dynamic.DynamicClient, data utils.Workloa
 // Receives a logger, the data representing a workload.
 // If has any difference the job will be recreated.
 func Job_update(dynamicContext *dynamic.DynamicClient, data utils.Workload) error {
-	namespace := "default"
+	namespace := utils.Get_context_namespace()
 	deletion_timeout := 5
 
 	gvr := schema.GroupVersionResource{
@@ -133,7 +133,7 @@ func Job_update(dynamicContext *dynamic.DynamicClient, data utils.Workload) erro
 
 	if hasDiff {
 
-		if err := Job_delete(dynamicContext, data.Name, namespace); err != nil {
+		if err := Job_delete(dynamicContext, data.Name); err != nil {
 			return err
 		}
 

@@ -8,13 +8,26 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-var kubepath string
+var (
+	kubepath  string
+	namespace string
+)
 
-// Set the kubernetes context path using the
+// Set the kubernetes context path
 func Set_context_path(path string) {
 	kubepath = filepath.Join(
 		os.Getenv("HOME"), ".kube", path,
 	)
+}
+
+// Set the target namespace
+func Set_context_namespace(namespace_config string) {
+	namespace = namespace_config
+}
+
+// Get the target namespace
+func Get_context_namespace() string {
+	return namespace
 }
 
 // Get the current kube context, it must be a valid context to submit

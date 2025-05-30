@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/cloud-ai-ufcg/broker/pkg/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -13,9 +14,9 @@ import (
 // Parameters:
 // - clientset: Kubernetes clientset used to perform the deletation
 // - name: Name of the Deployment to delete
-// - namespace: Namespace where the deployment resides
-func Deployment_delete(dynClient *dynamic.DynamicClient, name string, namespace string) error {
+func Deployment_delete(dynClient *dynamic.DynamicClient, name string) error {
 	deletePolicy := metav1.DeletePropagationForeground
+	namespace := utils.Get_context_namespace()
 
 	gvr := schema.GroupVersionResource{
 		Group:    "apps",
@@ -38,9 +39,9 @@ func Deployment_delete(dynClient *dynamic.DynamicClient, name string, namespace 
 // Parameters:
 // - clientset: Kubernetes dynamic client used to perform the deletation
 // - name: Name of the job to delete
-// - namespace: Namespace where the job resides
-func Job_delete(dynClient *dynamic.DynamicClient, name string, namespace string) error {
+func Job_delete(dynClient *dynamic.DynamicClient, name string) error {
 	deletePolicy := metav1.DeletePropagationForeground
+	namespace := utils.Get_context_namespace()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

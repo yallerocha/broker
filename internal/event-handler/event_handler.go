@@ -81,7 +81,7 @@ func deployment_action(dynamicContext *dynamic.DynamicClient, df dataframe.DataF
 
 		utils.Log_err("Failed to create Deployment", err)
 	} else if action == "delete" {
-		err := events.Deployment_delete(dynamicContext, deployment.Name, "default")
+		err := events.Deployment_delete(dynamicContext, deployment.Name)
 
 		utils.Log_err("Failed to delete Deployment", err)
 	} else if action == "update" {
@@ -122,7 +122,7 @@ func job_action(dynamicContext *dynamic.DynamicClient, df dataframe.DataFrame, i
 
 		utils.Log_err("Failed to create Job", err)
 	} else if action == "delete" {
-		err := events.Job_delete(dynamicContext, job.Name, "default")
+		err := events.Job_delete(dynamicContext, job.Name)
 
 		utils.Log_err("Failed to delete Job", err)
 	} else if action == "update" {
