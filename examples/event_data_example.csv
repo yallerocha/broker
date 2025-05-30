@@ -1,5 +1,10 @@
 timestamp,id,kind,action,replicas,cpu,memory,label,job_duration
 1,2,deployment,create,2,4,0.08,public,
-1,20,job,create,2,4,0.08,public,
-5,2,deployment,update,10,4,0.08,private,
-5,20,job,update,10,4,0.08,private,
+1,20,job,create,20,4,0.08,public,3
+1,21,job,create,20,4,0.08,public,3
+5,2,deployment,update,10,1,0.12,private,
+10,20,job,update,2,1,0.08,private,
+11,21,job,update,20,4,0.08,private,
+14,2,deployment,delete,10,1,0.12,private,
+14,20,job,delete,2,1,0.08,private,
+15,21,job,delete,20,4,0.08,private,

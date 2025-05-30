@@ -30,7 +30,7 @@ func Log_fatal(msg string, err error) {
 // Use the logger to show a message if an error exists.
 func Log_err(msg string, err error) {
 	if err != nil {
-		_, file, line, ok := runtime.Caller(1)
+		_, file, line, ok := runtime.Caller(2)
 		if !ok {
 			file = "Unknown"
 			line = 0

@@ -1,7 +1,6 @@
 package broker
 
 import (
-	"log/slog"
 	"os"
 
 	eventhandler "github.com/cloud-ai-ufcg/broker/internal/event-handler"
@@ -10,17 +9,15 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var DefaultLogger *slog.Logger
-
 // Entrypoint to run the broker
 // it receives a CSV file and a yaml file representing the config file
 func Run(event_data *os.File, config_yaml *os.File) {
 	config, df := process_parameters(event_data, config_yaml)
 
-	log_setting()
+	utils.Configure_logger()
 	initialize_context(config)
 
-	eventhandler.Handler(config, df, DefaultLogger)
+	eventhandler.Handler(config, df)
 }
 
 func initialize_context(config utils.Config) {
@@ -33,7 +30,6 @@ func process_parameters(event_data *os.File, config_yaml *os.File) (utils.Config
 	df := process_csv(event_data)
 
 	return config, df
-
 }
 
 // Uses the 'struct' defined in the models.go
@@ -52,13 +48,4 @@ func process_yaml(config_yaml *os.File) utils.Config {
 func process_csv(event_data *os.File) dataframe.DataFrame {
 	df := dataframe.ReadCSV(event_data)
 	return df
-}
-
-// Set the logger
-func log_setting() {
-	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})
-
-	DefaultLogger = slog.New(handler)
-	DefaultLogger.With("prefix", "[BROKER]")
-	slog.SetDefault(DefaultLogger)
 }

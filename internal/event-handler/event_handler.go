@@ -2,10 +2,7 @@ package eventhandler
 
 import (
 	"fmt"
-	"log/slog"
 	"math"
-	"os"
-	"runtime"
 	"strings"
 	"time"
 
@@ -15,20 +12,12 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
-var (
-	logger *slog.Logger
-)
-
 // Entrypoint to run the event handler.
 // It receives a config 'struct' and a dataframe containing the data
-func Handler(config utils.Config, origin_data dataframe.DataFrame, default_logger *slog.Logger) {
+func Handler(config utils.Config, origin_data dataframe.DataFrame) {
 	dynamicContext, err := utils.GetDynamicContext()
-	logger = default_logger
 
-	log_err("Failed to get the client context", err)
-	if err != nil {
-		os.Exit(1)
-	}
+	utils.Log_fatal("Failed to get the client context", err)
 
 	start_time := time.Now()
 	df := origin_data.Arrange(dataframe.Sort("timestamp"))
@@ -37,7 +26,7 @@ func Handler(config utils.Config, origin_data dataframe.DataFrame, default_logge
 	for i := range rows[0:df.Nrow()] {
 		kind := df.Col("kind").Elem(i).String()
 		time_stamp, err := df.Col("timestamp").Elem(i).Int()
-		log_err("Failed to read the timestamp", err)
+		utils.Log_err("Failed to read the timestamp", err)
 
 		sleep_time(time_stamp, start_time)
 
@@ -46,7 +35,7 @@ func Handler(config utils.Config, origin_data dataframe.DataFrame, default_logge
 		} else if strings.ToLower(kind) == "job" {
 			job_action(dynamicContext, df, i)
 		} else {
-			log_err(fmt.Sprintf("Unknown kind %s", kind), fmt.Errorf(""))
+			utils.Log_err(fmt.Sprintf("Unknown kind %s", kind), fmt.Errorf("CSV line %d", i+2))
 		}
 
 	}
@@ -59,14 +48,14 @@ func sleep_time(time_stamp int, start_time time.Time) {
 	elapsed := time.Since(start_time)
 
 	if int64(math.Ceil(elapsed.Seconds())) < int64(time_stamp) {
-		logger.Info(fmt.Sprintf("⏳ Waiting %d seconds", int64(time_stamp)))
+		utils.Log_info(fmt.Sprintf("⏳ Waiting %d seconds", int64(float64(time_stamp)-elapsed.Seconds())))
 		time.Sleep(time.Duration(float64(time_stamp)-elapsed.Seconds()) * time.Second)
 	}
 
 }
 
 // Execute the action required for each deployment
-// Receives the clientset and dynamicContext for requests,
+// Receives the dynamicContext for requests,
 // a df containing the data and an idx that represents the index of this workload.
 func deployment_action(dynamicContext *dynamic.DynamicClient, df dataframe.DataFrame, idx int) {
 	replicas, _ := df.Col("replicas").Elem(idx).Int()
@@ -84,27 +73,27 @@ func deployment_action(dynamicContext *dynamic.DynamicClient, df dataframe.DataF
 	action := df.Col("action").Elem(idx).String()
 	action = strings.ToLower(action)
 
-	logger.Info(fmt.Sprintf("➡️ [%ss] [Deployment] %s: %s", df.Col("timestamp").Elem(idx).String(), strings.ToUpper(action), deployment.Name))
+	utils.Log_info(fmt.Sprintf("➡️ [%ss] [Deployment] %s: %s", df.Col("timestamp").Elem(idx).String(), strings.ToUpper(action), deployment.Name))
 	if action == "create" {
 		err := events.Create_Workload(dynamicContext, deployment, "apps", "deployments")
 
-		log_err("Failed to create Deployment", err)
+		utils.Log_err("Failed to create Deployment", err)
 	} else if action == "delete" {
 		err := events.Deployment_delete(dynamicContext, deployment.Name, "default")
 
-		log_err("Failed to delete Deployment", err)
+		utils.Log_err("Failed to delete Deployment", err)
 	} else if action == "update" {
 		err := events.Deployment_update(dynamicContext, deployment)
 
-		log_err("Failed to update Deployment", err)
+		utils.Log_err("Failed to update Deployment", err)
 	} else {
-		log_err(fmt.Sprintf("Unknown action: %s", action), fmt.Errorf(""))
+		utils.Log_err(fmt.Sprintf("Unknown action: %s", action), fmt.Errorf(""))
 	}
 
 }
 
 // Execute the action required for each deployment
-// Receives the clientset and dynamicContext for requests,
+// Receives the dynamicContext for requests,
 // a df containing the data and an idx that represents the index of this workload.
 func job_action(dynamicContext *dynamic.DynamicClient, df dataframe.DataFrame, idx int) {
 	replicas, _ := df.Col("replicas").Elem(idx).Int()
@@ -125,33 +114,20 @@ func job_action(dynamicContext *dynamic.DynamicClient, df dataframe.DataFrame, i
 	action := df.Col("action").Elem(idx).String()
 	action = strings.ToLower(action)
 
-	logger.Info(fmt.Sprintf("➡️ [%ss] [Job] %s: %s", df.Col("timestamp").Elem(idx).String(), strings.ToUpper(action), job.Name))
+	utils.Log_info(fmt.Sprintf("➡️ [%ss] [Job] %s: %s", df.Col("timestamp").Elem(idx).String(), strings.ToUpper(action), job.Name))
 	if action == "create" {
 		err := events.Create_Workload(dynamicContext, job, "batch", "jobs")
 
-		log_err("Failed to create Job", err)
+		utils.Log_err("Failed to create Job", err)
 	} else if action == "delete" {
 		err := events.Job_delete(dynamicContext, job.Name, "default")
 
-		log_err("Failed to delete Job", err)
+		utils.Log_err("Failed to delete Job", err)
 	} else if action == "update" {
 		err := events.Job_update(dynamicContext, job)
 
-		log_err("Failed to update Job", err)
+		utils.Log_err("Failed to update Job", err)
 	} else {
-		log_err(fmt.Sprintf("Unknown action: %s", action), fmt.Errorf(""))
-	}
-}
-
-// Define a function to loggers.
-func log_err(msg string, err error) {
-	if err != nil {
-		_, file, line, ok := runtime.Caller(1)
-		if !ok {
-			file = "???"
-			line = 0
-		}
-
-		logger.Error("❌ "+msg+": "+err.Error(), slog.String("source", fmt.Sprintf("%s:%d", file, line)))
+		utils.Log_err(fmt.Sprintf("Unknown action: %s", action), fmt.Errorf(""))
 	}
 }
