@@ -39,7 +39,7 @@ func process_yaml(config_yaml *os.File) utils.Config {
 	decoder := yaml.NewDecoder(config_yaml)
 
 	err := decoder.Decode(&out)
-	utils.Exit_if_err(err, "Failed to decode the yaml.")
+	utils.Log_fatal("Failed to decode the yaml.", err)
 
 	return out
 }

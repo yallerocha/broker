@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 
@@ -37,10 +36,4 @@ func GetDynamicContext() (*dynamic.DynamicClient, error) {
 	}
 
 	return dynClient, nil
-}
-
-func Exit_if_err(err error, msg string) {
-	if err != nil {
-		log.Fatalln(msg + ":\n" + err.Error())
-	}
 }
