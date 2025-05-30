@@ -165,10 +165,6 @@ func Job_update(dynamicContext *dynamic.DynamicClient, data utils.Workload) erro
 		job.ObjectMeta.Annotations["clusterpropagationpolicy.karmada.io/name"] = "job-" + label
 	}
 
-	if len(data.Annotations) > 0 {
-		job.ObjectMeta.Annotations["pod-complete.stage.kwok.x-k8s.io/delay"] = data.Annotations["pod-complete.stage.kwok.x-k8s.io/delay"]
-	}
-
 	// perform the update
 
 	objMap, err := apiruntime.DefaultUnstructuredConverter.ToUnstructured(&job)
