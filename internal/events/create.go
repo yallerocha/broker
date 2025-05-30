@@ -109,7 +109,7 @@ func deployment_create(data utils.Workload) *appv1.Deployment {
 	return deployment
 }
 
-// Prepare a Job type for submition.
+// Prepare a Job type for submission.
 func job_create(data utils.Workload) *batchv1.Job {
 	label := map[string]string{}
 
