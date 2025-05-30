@@ -15,10 +15,16 @@ var DefaultLogger *slog.Logger
 // Entrypoint to run the broker
 // it receives a CSV file and a yaml file representing the config file
 func Run(event_data *os.File, config_yaml *os.File) {
-	log_setting()
 	config, df := process_parameters(event_data, config_yaml)
 
+	log_setting()
+	initialize_context(config)
+
 	eventhandler.Handler(config, df, DefaultLogger)
+}
+
+func initialize_context(config utils.Config) {
+	utils.Set_context_path(config.KubeConfig)
 }
 
 // Process the parameters passed by the main script.

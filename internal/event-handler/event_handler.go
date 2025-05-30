@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"os"
 	"runtime"
 	"strings"
 	"time"
@@ -21,11 +22,13 @@ var (
 // Entrypoint to run the event handler.
 // It receives a config 'struct' and a dataframe containing the data
 func Handler(config utils.Config, origin_data dataframe.DataFrame, default_logger *slog.Logger) {
-	_, err := utils.GetClientSet(config.KubeConfig)
-	dynamicContext := utils.GetDynamicContext(default_logger)
-
+	dynamicContext, err := utils.GetDynamicContext()
 	logger = default_logger
+
 	log_err("Failed to get the client context", err)
+	if err != nil {
+		os.Exit(1)
+	}
 
 	start_time := time.Now()
 	df := origin_data.Arrange(dataframe.Sort("timestamp"))
