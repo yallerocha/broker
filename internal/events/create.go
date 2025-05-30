@@ -53,7 +53,7 @@ func Create_Workload(dynClient *dynamic.DynamicClient, data utils.Workload, grou
 	return err
 }
 
-// Prepare a Deployment type for submition.
+// Prepare a Deployment type for submission.
 func deployment_create(data utils.Workload) *appv1.Deployment {
 	label := map[string]string{}
 
