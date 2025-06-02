@@ -3,6 +3,7 @@ package events
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -11,7 +12,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	resource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -19,15 +19,18 @@ import (
 	utils "github.com/cloud-ai-ufcg/broker/pkg/utils"
 )
 
+// Submit the workload using the dynamic client.
+// Receives a dynamic client, a data struct representing
+// the workload to submit, a resource to define the data type.
 func Create_Workload(dynClient *dynamic.DynamicClient, data utils.Workload, group string, resource string) error {
 	var workload any
-	namespace := "default"
+	namespace := utils.Get_context_namespace()
 
-	if strings.ToLower(resource) == "deployments" {
-		workload = deployment_create(data)
-	} else if strings.ToLower(resource) == "jobs" {
-		workload = job_create(data)
+	if err := validate_workload_parameter(group, resource); err != nil {
+		return err
 	}
+
+	workload = create_manifest(resource, data)
 
 	deployJSON, err := json.Marshal(workload)
 	if err != nil {
@@ -45,16 +48,13 @@ func Create_Workload(dynClient *dynamic.DynamicClient, data utils.Workload, grou
 		Resource: resource,
 	}
 
-	_, err = dynClient.Resource(gvr).Namespace(namespace).Create(context.TODO(), unstructuredObj, v1.CreateOptions{})
-	if err != nil {
-		return err
-	}
+	_, err = dynClient.Resource(gvr).Namespace(namespace).Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
 
-	return nil
+	return err
 }
 
+// Prepare a Deployment type for submission.
 func deployment_create(data utils.Workload) *appv1.Deployment {
-
 	label := map[string]string{}
 
 	tolerations := []corev1.Toleration{{
@@ -109,8 +109,8 @@ func deployment_create(data utils.Workload) *appv1.Deployment {
 	return deployment
 }
 
+// Prepare a Job type for submission.
 func job_create(data utils.Workload) *batchv1.Job {
-
 	label := map[string]string{}
 
 	tolerations := []corev1.Toleration{{
@@ -166,6 +166,35 @@ func job_create(data utils.Workload) *batchv1.Job {
 	job.APIVersion = "batch/v1"
 
 	return job
+}
+
+// Validate the parameters used in CreateWorkload function.
+func validate_workload_parameter(group string, resource string) error {
+	if !slices.Contains([]string{"batch", "apps"}, group) {
+		return fmt.Errorf("invalid Group: %s", group)
+	}
+
+	if !slices.Contains([]string{"jobs", "deployments"}, resource) {
+		return fmt.Errorf("invalid Resource: %s", resource)
+	}
+
+	return nil
+}
+
+// Use the other functions to create a manifest object for an especific resource type
+// Receives the resource type (e.g. job, deployment, ...) and a workload object
+// The object returned can be a deployment or a job.
+func create_manifest(resource_type string, data utils.Workload) any {
+	var out any
+	resource_type = strings.ToLower(resource_type)
+
+	if resource_type == "deployments" {
+		out = deployment_create(data)
+	} else if resource_type == "jobs" {
+		out = job_create(data)
+	}
+
+	return out
 }
 
 func int32Ptr(i int32) *int32 {

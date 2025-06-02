@@ -3,9 +3,7 @@ package events
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"math"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -13,18 +11,40 @@ import (
 
 	"github.com/cloud-ai-ufcg/broker/pkg/utils"
 	v1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	meta "k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/api/resource"
-	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apiruntime "k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/kubernetes"
 )
 
-func Deployment_update(logger *slog.Logger, clientset *kubernetes.Clientset, data utils.Workload) *v1.Deployment {
-	namespace := "default"
+// Update the deployment using a clientset.
+// Receives the data representing a workload.
+func Deployment_update(dynamicContext *dynamic.DynamicClient, data utils.Workload) error {
+	namespace := utils.Get_context_namespace()
 
-	deployment, err := clientset.AppsV1().Deployments(namespace).Get(context.TODO(), data.Name, meta.GetOptions{})
-	exit_if_err(logger, err, "Failed to get deployment")
+	gvr := schema.GroupVersionResource{
+		Group:    "apps",
+		Version:  "v1",
+		Resource: "deployments",
+	}
+
+	// get deployment as Unstructured
+	unstr, err := dynamicContext.Resource(gvr).Namespace(namespace).Get(context.TODO(), data.Name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	// convert Unstructured to typed Deployment
+	var deployment v1.Deployment
+	err = apiruntime.DefaultUnstructuredConverter.FromUnstructured(unstr.Object, &deployment)
+	if err != nil {
+		return err
+	}
 
 	// resource update in each container
 
@@ -58,42 +78,70 @@ func Deployment_update(logger *slog.Logger, clientset *kubernetes.Clientset, dat
 		deployment.ObjectMeta.Annotations["clusterpropagationpolicy.karmada.io/name"] = "deploy-" + label
 	}
 
-	// apply the update
+	// convert to Unstructured
+	objMap, err := apiruntime.DefaultUnstructuredConverter.ToUnstructured(&deployment)
+	if err != nil {
+		return err
+	}
+	unstr.Object = objMap
 
-	update, err := clientset.AppsV1().Deployments(namespace).Update(context.TODO(), deployment, meta.UpdateOptions{})
-	exit_if_err(logger, err, "Failed to update deployment")
+	// apply update
+	_, err = dynamicContext.Resource(gvr).Namespace(namespace).Update(context.TODO(), unstr, metav1.UpdateOptions{})
 
-	return update
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, dynamicContext *dynamic.DynamicClient, data utils.Workload) {
-	namespace := "default"
+// Update the Job using a dynamicContext.
+// Receives a logger, the data representing a workload.
+// If has any difference the job will be recreated.
+func Job_update(dynamicContext *dynamic.DynamicClient, data utils.Workload) error {
+	namespace := utils.Get_context_namespace()
+	deletion_timeout := 5
 
-	job, err := clientset.BatchV1().Jobs(namespace).Get(context.TODO(), data.Name, meta.GetOptions{})
-	exit_if_err(logger, err, "Failed to get job")
+	gvr := schema.GroupVersionResource{
+		Group:    "batch",
+		Version:  "v1",
+		Resource: "jobs",
+	}
+
+	// get Job as Unstructured
+	unstr, err := dynamicContext.Resource(gvr).Namespace(namespace).Get(context.TODO(), data.Name, metav1.GetOptions{})
+
+	if err != nil {
+		return err
+	}
+
+	// convert to batchv1.Job
+	var job batchv1.Job
+	err = apiruntime.DefaultUnstructuredConverter.FromUnstructured(unstr.Object, &job)
+
+	if err != nil {
+		return err
+	}
 
 	// recreate if has difference
 
-	container_resource := job.Spec.Template.Spec.Containers[0]
-	currentCpu := container_resource.Resources.Requests.Cpu().MilliValue()
-	currentMem := container_resource.Resources.Requests.Memory().Value() / (1024 * 1024)
+	hasDiff, err := check_has_diff(job, data)
 
-	newCpu := resource.MustParse(data.CpuRequested)
-	newMem := strings.Split(data.MemRequested, "Mi")
-	newMemConverted, err := strconv.ParseFloat(newMem[0], 64)
-
-	exit_if_err(logger, err, "Failed during convert process")
-
-	hasDiff := currentCpu != newCpu.MilliValue() || math.Abs(newMemConverted-float64(currentMem)) > 0.0001 || *job.Spec.Completions != data.Replicas
+	if err != nil {
+		return err
+	}
 
 	if hasDiff {
-		Job_delete(logger, clientset, data.Name, namespace)
 
-		time.Sleep(500 * time.Millisecond)
-		err := Create_Workload(dynamicContext, data, "batch", "jobs")
+		if err := Job_delete(dynamicContext, data.Name); err != nil {
+			return err
+		}
 
-		exit_if_err(logger, err, "Failed to update job")
-		return
+		if err := waitForJobDeletion(dynamicContext, data.Name, namespace, time.Duration(deletion_timeout)); err != nil {
+			return err
+		}
+
+		return Create_Workload(dynamicContext, data, "batch", "jobs")
 	}
 
 	// update the annotations and labels
@@ -117,24 +165,67 @@ func Job_update(logger *slog.Logger, clientset *kubernetes.Clientset, dynamicCon
 		job.ObjectMeta.Annotations["clusterpropagationpolicy.karmada.io/name"] = "job-" + label
 	}
 
-	if len(data.Annotations) > 0 {
-		job.ObjectMeta.Annotations["pod-complete.stage.kwok.x-k8s.io/delay"] = data.Annotations["pod-complete.stage.kwok.x-k8s.io/delay"]
+	// perform the update
+
+	objMap, err := apiruntime.DefaultUnstructuredConverter.ToUnstructured(&job)
+
+	if err != nil {
+		return err
 	}
 
-	// Perform the update
+	unstr.Object = objMap
 
-	_, err = clientset.BatchV1().Jobs(namespace).Update(context.TODO(), job, meta.UpdateOptions{})
-	exit_if_err(logger, err, "Failed to update job")
+	// apply update using dynamic client
+	_, err = dynamicContext.Resource(gvr).Namespace(namespace).Update(context.TODO(), unstr, metav1.UpdateOptions{})
+
+	return err
 }
 
-func exit_if_err(logger *slog.Logger, err error, msg string) {
+// Check if the job update will modify its resources
+// Return a bool (true if yes, false if not) and an error type.
+func check_has_diff(job batchv1.Job, data utils.Workload) (bool, error) {
+
+	container_resource := job.Spec.Template.Spec.Containers[0]
+	currentCpu := container_resource.Resources.Requests.Cpu().MilliValue()
+	currentMem := container_resource.Resources.Requests.Memory().Value() / (1024 * 1024)
+
+	newCpu := resource.MustParse(data.CpuRequested)
+	newMem := strings.Split(data.MemRequested, "Mi")
+	newMemConverted, err := strconv.ParseFloat(newMem[0], 64)
+
 	if err != nil {
-		_, file, line, ok := runtime.Caller(1)
-		if !ok {
-			file = "???"
-			line = 0
+		return false, err
+	}
+
+	hasDiff := currentCpu != newCpu.MilliValue() || math.Abs(newMemConverted-float64(currentMem)) > 0.0001 || *job.Spec.Completions != data.Replicas
+
+	return hasDiff, nil
+}
+
+// Wait for total job deletion.
+// Receives a dynamic context, the name of the job, the namespace and the timeout for limiting this wait.
+func waitForJobDeletion(dynamicClient dynamic.Interface, name string, namespace string, timeout time.Duration) error {
+	gvr := schema.GroupVersionResource{Group: "batch", Version: "v1", Resource: "jobs"}
+	start := time.Now()
+
+	for {
+		_, err := dynamicClient.Resource(gvr).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+
+		// if the job is already deleted
+		if meta.IsNoMatchError(err) || k8serrors.IsNotFound(err) {
+			return nil
 		}
 
-		logger.Error("❌ "+msg+": "+err.Error(), slog.String("source", fmt.Sprintf("%s:%d", file, line)))
+		// if another error appears during execution
+		if err != nil && !strings.Contains(err.Error(), "being deleted") {
+			return fmt.Errorf("unexpected error while waiting for deletion: %w", err)
+		}
+
+		// timeout
+		if time.Duration(time.Since(start).Seconds()) > time.Duration(timeout.Seconds()) {
+			return fmt.Errorf("timeout (%d s) while waiting for job %s deletion", int(timeout.Seconds()), name)
+		}
+
+		time.Sleep(200 * time.Millisecond)
 	}
 }
