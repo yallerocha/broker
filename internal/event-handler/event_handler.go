@@ -42,8 +42,11 @@ func Handler(config utils.Config, origin_data dataframe.DataFrame) {
 
 }
 
-// Apply the sleep time to an execution time less then the 'time stamp'
-// Receives the current time stamp in the dataframe and the start time.
+// This function is responsible for synchronizing the broker execution time
+// with the 'time_stamp' defined in the CSV. If the execution time is less than
+// the 'time_stamp', it will apply a sleep using the difference between
+// the execution time and the 'time_stamp'.
+// Receives the current 'time_stamp' in the dataframe and the 'start_time'.
 func sleep_time(time_stamp int, start_time time.Time) {
 	elapsed := time.Since(start_time)
 
@@ -94,7 +97,7 @@ func deployment_action(dynamicContext *dynamic.DynamicClient, df dataframe.DataF
 
 }
 
-// Execute the action required for each deployment
+// Execute the action required for each job
 // Receives the dynamicContext for requests,
 // a df containing the data and an idx that represents the index of this workload.
 func job_action(dynamicContext *dynamic.DynamicClient, df dataframe.DataFrame, idx int) {

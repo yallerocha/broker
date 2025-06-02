@@ -20,6 +20,8 @@ func Run(event_data *os.File, config_yaml *os.File) {
 	eventhandler.Handler(config, df)
 }
 
+// Retrieves the kubeconfig and Namespace defined by the config file.
+// It loads this information as variables to be used in multiple contexts.
 func initialize_context(config utils.Config) {
 	utils.Set_context_path(config.KubeConfig)
 	utils.Set_context_namespace(config.Namespace)
