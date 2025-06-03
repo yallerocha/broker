@@ -11,3 +11,8 @@ As mentioned in the last section, this repository contains an example configurat
 ### Isolated Test
 If you do not have a main controller to run the Broker but still want to run it for testing purposes, you can use the `main.go` script located in the `cmd/` directory. For this execution, you will need a CSV file with the events and a configuration file. The configuration file in the `example/` directory is a good choice for the testing process, as it will be kept up to date. After preparing these files, you must update the file paths defined in the `main.go` script.<br>
 **Note**: You must delete all deployments and jobs before any execution. You can use this command: `kubectl delete deployment --all && kubectl delete job --all`
+
+### Run the Broker in a container
+You can also run the Broker in a container using the Dockerfile available at the root of this repository. In this version, the container must have access to the `kubeconfig` file and a network connection between the host and the container. The `kubeconfig` file is located in a directory created by Kubernetes on your file system. You can find this file at `~/.kube/<config-file>`. <br>
+To build the Docker image, run `docker build . -t broker`. After that, you can run the container using: <br>
+`docker run -v $HOME/.kube/karmada.config:/root/.kube/karmada.config <broker-container-name>`. This command mounts the configuration file into the container.
