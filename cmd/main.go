@@ -5,11 +5,28 @@ import (
 	"os"
 
 	"github.com/cloud-ai-ufcg/broker/broker"
+	"github.com/cloud-ai-ufcg/broker/internal/api/router"
+	"github.com/cloud-ai-ufcg/broker/pkg/utils"
 )
 
 func main() {
-	csv_path := "your-path"
-	yaml_path := "your-path"
+	utils.Init()
+
+	if utils.Get_action_selected() {
+		api_init()
+	} else {
+		cli_init()
+	}
+
+}
+
+func api_init() {
+	router.Init_router()
+}
+
+func cli_init() {
+	csv_path := "examples/event_data_example.csv"
+	yaml_path := "examples/project_config_example.yaml"
 
 	config_yaml, err := os.Open(yaml_path)
 
