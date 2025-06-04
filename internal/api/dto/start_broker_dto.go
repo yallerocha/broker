@@ -8,7 +8,7 @@ type Start_request struct {
 
 // Defines a row representing the workload information
 type row struct {
-	Timestamp    string `json:"timestamp" binding:"required"`
+	Timestamp    int    `json:"timestamp" binding:"required"`
 	Id           string `json:"id" binding:"required"`
 	Kind         string `json:"kind" binding:"required"`
 	Action       string `json:"action" binding:"required"`
