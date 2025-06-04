@@ -1,0 +1,26 @@
+package dto
+
+// Data transfer object for requests in the 'post' route
+type Start_request struct {
+	Data   []row         `json:"data" binding:"required,min=1,dive,required" required:"$field is required"`
+	Config broker_config `json:"config" binding:"required" required:"$field is required"`
+}
+
+// Defines a row representing the workload information
+type row struct {
+	Timestamp    string `json:"timestamp" binding:"required"`
+	Id           string `json:"id" binding:"required"`
+	Kind         string `json:"kind" binding:"required"`
+	Action       string `json:"action" binding:"required"`
+	Replicas     string `json:"replicas" binding:"required"`
+	Cpu          string `json:"cpu" binding:"required"`
+	Memory       string `json:"memory" binding:"required"`
+	Label        string `json:"label" binding:"required"`
+	Job_duration string `json:"job_duration" binding:"required"`
+}
+
+// Defines a broker config containing the kubeconfig and the namespace information
+type broker_config struct {
+	Kubeconfig string `json:"kubeconfig" binding:"required"`
+	Namespace  string `json:"namespace" binding:"required"`
+}
