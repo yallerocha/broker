@@ -16,7 +16,7 @@ type row struct {
 	Cpu          string `json:"cpu" binding:"required"`
 	Memory       string `json:"memory" binding:"required"`
 	Label        string `json:"label" binding:"required"`
-	Job_duration string `json:"job_duration" binding:"required"`
+	Job_duration string `json:"job_duration"`
 }
 
 // Defines a broker config containing the kubeconfig and the namespace information
