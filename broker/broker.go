@@ -21,7 +21,7 @@ func Run(event_data *os.File, config_yaml *os.File) {
 }
 
 // Entrypoint to run the broker by the api execution.
-// it receives a CSV file and a yaml file representing the config file.
+// it receives a data frame and a config struct.
 func Run_from_api(event_data *dataframe.DataFrame, config utils.Config) {
 	utils.Configure_logger()
 	initialize_context(config)
