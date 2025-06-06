@@ -36,3 +36,7 @@ docker run -p 8080:80 --network <target-network> -v $HOME/.kube/karmada.config:/
 ```
 
 **Note**: The network is the context that allows the connection with your cluster. If you are using a local cluster, you can set this parameter as `host`. The `-p` flag is optional and will be necessary when you run the Broker API image.
+
+## Routes
+
+* The `/broker/` route contains a *POST* HTTP method for starting the Broker submission process. The body of the request is exemplified in an example file located in the `example/` directory.
