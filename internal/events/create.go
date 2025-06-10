@@ -64,7 +64,7 @@ func deployment_create(data utils.Workload) *appv1.Deployment {
 		Effect:   corev1.TaintEffectNoSchedule,
 	}}
 
-	if !slices.Contains([]string{"", "na", "n/a", "nan", "none"}, data.Label) {
+	if !slices.Contains([]string{"", "na", "n/a", "nan", "none"}, strings.ToLower(data.Label)) {
 		label["cloud"] = data.Label
 	}
 
@@ -120,7 +120,7 @@ func job_create(data utils.Workload) *batchv1.Job {
 		Effect:   corev1.TaintEffectNoSchedule},
 	}
 
-	if !slices.Contains([]string{"", "na", "n/a", "nan", "none"}, data.Label) {
+	if !slices.Contains([]string{"", "na", "n/a", "nan", "none"}, strings.ToLower(data.Label)) {
 		label["cloud"] = data.Label
 	}
 
