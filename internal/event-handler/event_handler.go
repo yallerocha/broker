@@ -13,8 +13,8 @@ import (
 )
 
 // Entrypoint to run the event handler.
-// It receives a config 'struct' and a dataframe containing the data
-func Handler(config utils.Config, origin_data dataframe.DataFrame) {
+// It receives a dataframe containing the data
+func Handler(origin_data dataframe.DataFrame) {
 	dynamicContext, err := utils.GetDynamicContext()
 
 	utils.Log_fatal("Failed to get the client context", err)

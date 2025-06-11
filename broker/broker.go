@@ -17,7 +17,7 @@ func Run(event_data *os.File, config_yaml *os.File) {
 	utils.Configure_logger()
 	initialize_context(config)
 
-	eventhandler.Handler(config, df)
+	eventhandler.Handler(df)
 }
 
 // Entrypoint to run the broker by the api execution.
@@ -26,7 +26,7 @@ func Run_from_api(event_data *dataframe.DataFrame, config utils.Config) {
 	utils.Configure_logger()
 	initialize_context(config)
 
-	eventhandler.Handler(config, *event_data)
+	eventhandler.Handler(*event_data)
 }
 
 // Retrieves the kubeconfig and Namespace defined by the config file.
