@@ -35,7 +35,7 @@ func Handler(origin_data dataframe.DataFrame) {
 		} else if strings.ToLower(kind) == "job" {
 			job_action(dynamicContext, df, i)
 		} else {
-			utils.Log_err(fmt.Sprintf("Unknown kind %s", kind), fmt.Errorf("CSV line %d", i+2))
+			utils.Log_err(fmt.Sprintf("Unknown kind %s", kind), fmt.Errorf("dataframe line %d", i+2))
 		}
 
 	}
