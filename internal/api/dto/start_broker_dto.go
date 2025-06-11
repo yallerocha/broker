@@ -15,7 +15,7 @@ type row struct {
 	Replicas     string `json:"replicas" binding:"required"`
 	Cpu          string `json:"cpu" binding:"required"`
 	Memory       string `json:"memory" binding:"required"`
-	Label        string `json:"label" binding:"required"`
+	Label        string `json:"label"`
 	Job_duration string `json:"job_duration"`
 }
 
