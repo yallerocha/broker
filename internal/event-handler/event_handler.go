@@ -25,13 +25,15 @@ func Handler(origin_data dataframe.DataFrame) {
 		kind := df.Col("kind").Elem(i).String()
 		time_stamp, err := df.Col("timestamp").Elem(i).Int()
 		utils.Log_err("Failed to read the timestamp", err)
-		
+
 		sleep_time(time_stamp, start_time)
 
 		if strings.ToLower(kind) == "deployment" {
 			Deployment_action(dynamicContext, df, i)
 		} else if strings.ToLower(kind) == "job" {
 			Job_action(dynamicContext, df, i)
+		} else if strings.ToLower(kind) == "node" {
+			Node_action(dynamicContext, df, i)
 		} else {
 			utils.Log_err(fmt.Sprintf("Unknown kind '%s'", kind), fmt.Errorf("dataframe line %d", i+2))
 		}
