@@ -12,7 +12,7 @@ import (
 
 // Delete a deployment with the given name in the specified namespace
 // Parameters:
-// - clientset: Kubernetes clientset used to perform the deletation
+// - dynClient: Kubernetes dynamic client used to perform the deletion
 // - name: Name of the Deployment to delete
 func Deployment_delete(dynClient *dynamic.DynamicClient, name string) error {
 	deletePolicy := metav1.DeletePropagationForeground
@@ -37,7 +37,7 @@ func Deployment_delete(dynClient *dynamic.DynamicClient, name string) error {
 
 // Delete a job with the given name in the specified namespace
 // Parameters:
-// - clientset: Kubernetes dynamic client used to perform the deletation
+// - dynClient: Kubernetes dynamic client used to perform the deletion
 // - name: Name of the job to delete
 func Job_delete(dynClient *dynamic.DynamicClient, name string) error {
 	deletePolicy := metav1.DeletePropagationForeground
