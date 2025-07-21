@@ -126,16 +126,16 @@ func job_create(data utils.Workload) *batchv1.Job {
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        data.Name,
-			Labels:      label,
-			Annotations: data.Annotations,
+			Name:   data.Name,
+			Labels: label,
 		},
 		Spec: batchv1.JobSpec{
 			Completions: int32Ptr(data.Replicas),
 			Parallelism: int32Ptr(data.Replicas),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"job": "job-app"},
+					Labels:      map[string]string{"job": "job-app"},
+					Annotations: data.Annotations,
 				},
 				Spec: corev1.PodSpec{
 					RestartPolicy: corev1.RestartPolicyNever,
