@@ -10,5 +10,8 @@ func execution_routes(router *gin.Engine) {
 	group := router.Group("/broker")
 	{
 		group.POST("/", handlers.Start_broker)
+		group.POST("/init", handlers.Init_broker)
+		group.POST("/simulation", handlers.Simulation_broker)
 	}
+
 }

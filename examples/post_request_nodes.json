@@ -1,0 +1,50 @@
+{
+  "data": [
+    {
+      "timestamp": 1,
+      "id": "kwok-node-initial-public5",
+      "kind": "Node",
+      "action": "create",
+      "cpu": "4",
+      "memory": "8192",
+      "label": "public",
+      "job_duration": ""
+    },
+    {
+      "timestamp": 5,
+      "id": "initial-deployment-prod5",
+      "kind": "deployment",
+      "action": "create",
+      "replicas": "2",
+      "cpu": "250m",
+      "memory": "128Mi",
+      "label": "public",
+      "job_duration": ""
+    },
+    {
+      "timestamp": 10,
+      "id": "initial-job-dev5",
+      "kind": "job",
+      "action": "create",
+      "replicas": "1",
+      "cpu": "1",
+      "memory": "512Mi",
+      "label": "private",
+      "job_duration": "30"
+    },
+    {
+      "timestamp": 1,
+      "id": "kwok-node-initial-private5",
+      "kind": "Node",
+      "action": "create",
+      "cpu": "2",
+      "memory": "4096",
+      "label": "private",
+      "job_duration": ""
+   }
+  ],
+  "config": {
+    "kubeconfig": "karmada.config",
+    "namespace": "default"
+  }
+}
