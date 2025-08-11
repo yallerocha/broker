@@ -146,9 +146,8 @@ func job_create(data utils.Workload) *batchv1.Job {
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        data.Name,
-			Labels:      label,
-			Annotations: data.Annotations,
+			Name:   data.Name,
+			Labels: label,
 		},
 		Spec: batchv1.JobSpec{
 			Completions: int32Ptr(data.Replicas),
