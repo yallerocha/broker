@@ -156,6 +156,7 @@ func job_create(data utils.Workload) *batchv1.Job {
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"job": "job-app"}, // Selector for the Pod Template
+					Annotations: data.Annotations,
 				},
 				Spec: corev1.PodSpec{
 					RestartPolicy: corev1.RestartPolicyNever, // Jobs are typically not restarted on completion
