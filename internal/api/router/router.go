@@ -7,5 +7,5 @@ func Init_router() {
 	router := gin.Default()
 	execution_routes(router)
 
-	router.Run(":8081")
+	router.Run(":8080")
 }

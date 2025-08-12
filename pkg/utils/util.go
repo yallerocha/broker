@@ -59,13 +59,13 @@ func GetDynamicContext() (*dynamic.DynamicClient, error) {
 // Ele usa o 'members.config' e seleciona o contexto apropriado dentro dele.
 // Esta é a nova função, usada especificamente para Nodes.
 func GetDynamicClientForMemberCluster(memberLabel string) (*dynamic.DynamicClient, error) {
-	memberConfigPath := filepath.Join(os.Getenv("HOME"), ".kube", "members.config") // Caminho hardcoded
+	memberConfigPath := filepath.Join(os.Getenv("HOME"), ".kube", "members.config")
 
 	var targetContext string
 	if memberLabel == "private" {
-		targetContext = "member1" // Nome do contexto dentro de members.config
+		targetContext = "member1"
 	} else if memberLabel == "public" {
-		targetContext = "member2" // Nome do contexto dentro de members.config
+		targetContext = "member2"
 	} else {
 		return nil, fmt.Errorf("unsupported member label: %s. Use 'private' or 'public'.", memberLabel)
 	}
