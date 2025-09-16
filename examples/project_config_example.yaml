@@ -1,2 +1,3 @@
 kubeconfig: "karmada.config"
 namespace: "default"
+client: "morpheus"  # Options: "karmada" or "morpheus"

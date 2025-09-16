@@ -19,8 +19,9 @@ type row struct {
 	Job_duration string `json:"job_duration"`
 }
 
-// Defines a broker config containing the kubeconfig and the namespace information
+// Defines a broker config containing the kubeconfig, namespace and client information
 type broker_config struct {
+	Client     string `json:"client" binding:"required"`
 	Kubeconfig string `json:"kubeconfig" binding:"required"`
 	Namespace  string `json:"namespace" binding:"required"`
 }

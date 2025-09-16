@@ -20,7 +20,7 @@ const (
 // Handler is the entrypoint to process a dataframe of events.
 // It receives the event data as a DataFrame and the execution mode.
 // The mode determines the order of event processing (e.g., node prioritization in "init" mode).
-func Handler(origin_data dataframe.DataFrame, mode string) {
+func KarmadaHandler(origin_data dataframe.DataFrame, mode string) {
 	// Get the DynamicClient for the Karmada control plane. This is the default client for workloads.
 	karmadaDynamicContext, err := utils.GetDynamicContext()
 	utils.Log_fatal("Failed to get Karmada client context", err) // Fatal if Karmada client cannot be obtained
@@ -94,6 +94,11 @@ func Handler(origin_data dataframe.DataFrame, mode string) {
 		}
 	}
 }
+
+// func MorpheusHandler(origin_data dataframe.DataFrame, morpheus_config utils.MorpheusConfig) {
+// 	morpheusClient, err = utils.NewMorpheusClient(morpheus_config)
+
+// }
 
 // sleep_time synchronizes the broker execution with the 'timestamp' defined in the dataframe.
 // If the current elapsed time is less than the event's timestamp, it pauses execution

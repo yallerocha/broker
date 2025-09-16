@@ -5,6 +5,8 @@ go 1.24.2
 require (
 	github.com/gin-gonic/gin v1.10.1
 	github.com/go-gota/gota v0.12.0
+	github.com/golodash/galidator/v2 v2.0.1
+	github.com/gomorpheus/morpheus-go-sdk v0.6.0
 	github.com/spf13/cobra v1.9.1
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.30.0
@@ -25,10 +27,10 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.20.0 // indirect
+	github.com/go-resty/resty/v2 v2.14.0 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/golodash/galidator/v2 v2.0.1 // indirect
 	github.com/golodash/godash v1.2.0 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.6 // indirect
@@ -53,7 +55,7 @@ require (
 	golang.org/x/sys v0.33.0 // indirect
 	golang.org/x/term v0.32.0 // indirect
 	golang.org/x/text v0.25.0 // indirect
-	golang.org/x/time v0.3.0 // indirect
+	golang.org/x/time v0.6.0 // indirect
 	gonum.org/v1/gonum v0.9.1 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect

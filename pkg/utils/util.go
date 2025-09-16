@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gomorpheus/morpheus-go-sdk"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -89,4 +90,15 @@ func GetDynamicClientForMemberCluster(memberLabel string) (*dynamic.DynamicClien
 		return nil, fmt.Errorf("failed to create dynamic client for %s (via %s): %w", targetContext, memberConfigPath, err)
 	}
 	return dynClient, nil
+}
+
+// NewMorpheusClient creates a new Morpheus orchestrator instance
+// morpheusURL, accessToken, refreshToken, expiresIn, and scope are required for authentication
+func NewMorpheusClient(morpheus_config MorpheusConfig) (*MorpheusClient, error) {
+	client := morpheus.NewClient(morpheus_config.URL)
+	client.SetAccessToken(morpheus_config.AccessToken, morpheus_config.RefreshToken, morpheus_config.ExpiresIn, morpheus_config.Scope)
+
+	return &MorpheusClient{
+		client: client,
+	}, nil
 }
