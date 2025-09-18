@@ -12,12 +12,18 @@ type Workload struct {
 }
 
 type Config struct {
-	KubeConfig string `yaml:"kubeconfig"`
-	Namespace  string `yaml:"namespace"`
+	Orchestrator         string `yaml:"orchestrator"`
+	KarmadaKubeConfig    string `yaml:"karmada_kubeconfig"`
+	KarmadaNamespace     string `yaml:"karmada_namespace"`
+	MorpheusURL          string `yaml:"morpheus_url"`
+	MorpheusAccessToken  string `yaml:"morpheus_access_token"`
+	MorpheusRefreshToken string `yaml:"morpheus_refresh_token"`
+	MorpheusExpiresIn    int64  `yaml:"morpheus_expires_in"`
+	MorpheusScope        string `yaml:"morpheus_scope"`
 }
 
 type MorpheusClient struct {
-	client *morpheus.Client
+	Client *morpheus.Client
 }
 
 type MorpheusConfig struct {

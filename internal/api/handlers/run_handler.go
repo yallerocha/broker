@@ -90,8 +90,8 @@ func to_dataframe(body dto.Start_request) *dataframe.DataFrame {
 // This extracts Kubernetes configuration details (Kubeconfig path and Namespace).
 func to_config(body dto.Start_request) utils.Config {
 	config := utils.Config{
-		KubeConfig: body.Config.Kubeconfig,
-		Namespace:  body.Config.Namespace,
+		KarmadaKubeConfig: body.Config.Kubeconfig,
+		KarmadaNamespace:  body.Config.Namespace,
 	}
 
 	return config

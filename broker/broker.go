@@ -18,7 +18,7 @@ func Run(event_data *os.File, config_yaml *os.File) {
 	initialize_context(config)
 
 	// Handles events in CLI mode.
-	eventhandler.KarmadaHandler(df, eventhandler.ModeCLI)
+	eventhandler.Handler(df, eventhandler.ModeCLI, config)
 }
 
 // Run_from_api is the entrypoint to start the broker via API execution.
@@ -28,14 +28,13 @@ func Run_from_api(event_data *dataframe.DataFrame, config utils.Config, mode str
 	initialize_context(config)
 
 	// Handles events based on the provided API execution mode (e.g., "init", "simulation").
-	eventhandler.KarmadaHandler(*event_data, mode)
+	eventhandler.Handler(*event_data, mode, config)
 }
 
 // initialize_context retrieves the KubeConfig path and Namespace from the provided configuration.
 // It sets these as global variables to be used across different contexts.
 func initialize_context(config utils.Config) {
-	utils.Set_context_path(config.KubeConfig)
-	utils.Set_context_namespace(config.Namespace)
+	utils.Set_context(config)
 }
 
 // process_parameters processes input files (CSV for event data, YAML for configuration).
