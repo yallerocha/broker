@@ -22,6 +22,19 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
+func Morpheus_Update_Workload(morpheusClient *utils.MorpheusClient, workload utils.Workload, clusterID int) error {
+	err := Morpheus_Delete_Workload(morpheusClient, workload, clusterID)
+	if err != nil {
+		return fmt.Errorf("failed to delete, on updating proccess, deployment %s from cluster %d: %v", workload.Name, clusterID, err)
+	}
+	err = Morpheus_Create_Workload(morpheusClient, workload)
+	if err != nil {
+		return fmt.Errorf("failed to create, on updating proccess, deployment %s in cluster %d: %v", workload.Name, clusterID, err)
+	}
+
+	return nil
+}
+
 // Update the deployment using a clientset.
 // Receives the data representing a workload.
 func Deployment_update(dynamicContext *dynamic.DynamicClient, data utils.Workload) error {
