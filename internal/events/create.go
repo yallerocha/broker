@@ -24,6 +24,9 @@ import (
 
 func Morpheus_Create_Workload(morpheusClient *utils.MorpheusClient, workload utils.Workload) error {
 	yamlStr := create_yaml_template(workload)
+	if yamlStr == "" {
+		return fmt.Errorf("failed to generate YAML for workload %s", workload.Name)
+	}
 	req := &morpheus.Request{
 		Body: map[string]interface{}{"specYaml": yamlStr},
 	}
@@ -32,6 +35,14 @@ func Morpheus_Create_Workload(morpheusClient *utils.MorpheusClient, workload uti
 	clusterID, err := strconv.ParseInt(workload.Label, 10, 64)
 	if err != nil {
 		return fmt.Errorf("invalid cluster id in workload.Label: %s", workload.Label)
+	}
+
+	fmt.Println("----- ApplyTemplateToCluster -----: clusterID: ", clusterID) // DEBUG
+	// Marshal the body to JSON so we can see exactly what will be sent over HTTP
+	if bodyJSON, jbErr := json.Marshal(req.Body); jbErr == nil {
+		fmt.Println("----- ApplyTemplateToCluster JSON payload -----:\n", string(bodyJSON))
+	} else {
+		fmt.Println("----- ApplyTemplateToCluster failed marshaling body: ", jbErr)
 	}
 
 	_, err = morpheusClient.Client.ApplyTemplateToCluster(clusterID, req)
@@ -317,13 +328,14 @@ func create_manifest(resource_type string, data utils.Workload) any {
 	var out any
 	resource_type = strings.ToLower(resource_type) // Ensure case-insensitivity
 
-	if resource_type == "deployments" {
+	switch resource_type {
+	case "deployments":
 		out = deployment_create(data)
-	} else if resource_type == "jobs" {
+	case "jobs":
 		out = job_create(data)
-	} else if resource_type == "nodes" {
+	case "nodes":
 		out = node_create(data)
-	} else {
+	default:
 		// Log an error if an unknown resource type is requested.
 		utils.Log_err(fmt.Sprintf("Unknown resource type: %s", resource_type), nil)
 		out = nil

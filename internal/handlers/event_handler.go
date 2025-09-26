@@ -25,11 +25,17 @@ func Handler(origin_data dataframe.DataFrame, mode string, config utils.Config) 
 	var karmadaDynamicContext *dynamic.DynamicClient
 	var morpheusClient *utils.MorpheusClient
 	var err error
-	if config.Orchestrator == "morpheus" {
+	switch config.Orchestrator {
+	case "morpheus":
 		morpheus_config := utils.SetMorpheusConfig(config.MorpheusURL, config.MorpheusAccessToken, config.MorpheusRefreshToken, config.MorpheusExpiresIn, config.MorpheusScope)
 		morpheusClient, err = utils.NewMorpheusClient(*morpheus_config)
-		utils.Log_fatal("Failed to create Morpheus client", err) // Fatal if Morpheus client cannot be created
-	} else if config.Orchestrator == "karmada" {
+		if err != nil {
+			utils.Log_fatal("Failed to create Morpheus client", err)
+		}
+		if morpheusClient == nil || morpheusClient.Client == nil {
+			utils.Log_fatal("Morpheus client is nil after creation", fmt.Errorf("nil morpheus client"))
+		}
+	case "karmada":
 		karmadaDynamicContext, err = utils.GetDynamicContext()
 		utils.Log_fatal("Failed to get Karmada client context", err) // Fatal if Karmada client cannot be obtained
 	}

@@ -90,8 +90,14 @@ func to_dataframe(body dto.Start_request) *dataframe.DataFrame {
 // This extracts Kubernetes configuration details (Kubeconfig path and Namespace).
 func to_config(body dto.Start_request) utils.Config {
 	config := utils.Config{
-		KarmadaKubeConfig: body.Config.Kubeconfig,
-		KarmadaNamespace:  body.Config.Namespace,
+		Orchestrator:         body.Config.Orchestrator,
+		KarmadaKubeConfig:    body.Config.Kubeconfig,
+		KarmadaNamespace:     body.Config.Namespace,
+		MorpheusURL:          body.Config.MorpheusURL,
+		MorpheusAccessToken:  body.Config.MorpheusAccessToken,
+		MorpheusRefreshToken: body.Config.MorpheusRefreshToken,
+		MorpheusScope:        body.Config.MorpheusScope,
+		MorpheusExpiresIn:    body.Config.MorpheusExpiresIn,
 	}
 
 	return config
