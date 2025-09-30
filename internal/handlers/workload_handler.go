@@ -153,7 +153,7 @@ func Morpheus_Action(morpheusClient *utils.MorpheusClient, df dataframe.DataFram
 	action := strings.ToLower(df.Col("action").Elem(idx).String())
 
 	// Log the action being performed in Morpheus.
-	utils.Log_info(fmt.Sprintf("➡️ [%ss] [Morpheus Workload] %s: %s (managed by Morpheus for label '%s')", df.Col("timestamp").Elem(idx).String(), strings.ToUpper(action), workload.Name, label))
+	utils.Log_info(fmt.Sprintf("➡️ [%ss] [Morpheus Workload] %s: %s (managed by Morpheus for cluster ID '%s')", df.Col("timestamp").Elem(idx).String(), strings.ToUpper(action), workload.Name, label))
 	switch action {
 	case "create":
 		err := events.Morpheus_Create_Workload(morpheusClient, workload)

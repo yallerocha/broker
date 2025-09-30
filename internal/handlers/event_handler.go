@@ -42,10 +42,9 @@ func Handler(origin_data dataframe.DataFrame, mode string, config utils.Config) 
 
 	start_time := time.Now()
 	df := origin_data.Arrange(dataframe.Sort("timestamp")) // Sort events by timestamp
-	rows := df.Records()                                   // Get records as []interface{}
+	rows := df.Records()
 
 	utils.Log_info(fmt.Sprintf("DEBUG: Total rows in dataframe: %d. Mode: %s", df.Nrow(), mode))
-
 	if mode == ModeInit {
 		if config.Orchestrator != "karmada" {
 			utils.Log_info("INFO: Node creation is only supported with Karmada orchestrator. Skipping.")

@@ -1,10 +1,7 @@
 package utils
 
 import (
-	"bytes"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
 
@@ -129,53 +126,5 @@ func NewMorpheusClient(morpheus_config MorpheusConfig) (*MorpheusClient, error) 
 	client := morpheus.NewClient(morpheus_config.URL)
 	client.SetAccessToken(morpheus_config.AccessToken, morpheus_config.RefreshToken, morpheus_config.ExpiresIn, morpheus_config.Scope)
 
-	// Attach debug HTTP transport by replacing the default transport with a
-	// wrapper that logs requests/responses. This is a temporary debugging aid
-	// because the gomorpheus client doesn't expose a public HTTPClient field.
-	// We only replace it for debugging purposes; in production you may want a
-	// cleaner approach.
-	dbg := &debugRoundTripper{rt: http.DefaultTransport}
-	http.DefaultTransport = dbg
-
-	return &MorpheusClient{Client: client}, nil
-}
-
-// debugRoundTripper logs basic request and response info and truncates large bodies.
-type debugRoundTripper struct {
-	rt http.RoundTripper
-}
-
-func (d *debugRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	// Log request method and path
-	fmt.Printf("[MORPHEUS-DEBUG] Request: %s %s\n", req.Method, req.URL)
-
-	if req.Body != nil {
-		rb, _ := ioutil.ReadAll(req.Body)
-		req.Body = ioutil.NopCloser(bytes.NewBuffer(rb))
-		if len(rb) > 8192 {
-			fmt.Printf("[MORPHEUS-DEBUG] Request Body (truncated to 8KB): %s...\n", string(rb[:8192]))
-		} else {
-			fmt.Printf("[MORPHEUS-DEBUG] Request Body: %s\n", string(rb))
-		}
-	}
-
-	resp, err := d.rt.RoundTrip(req)
-	if err != nil {
-		fmt.Printf("[MORPHEUS-DEBUG] RoundTrip error: %v\n", err)
-		return resp, err
-	}
-
-	if resp != nil && resp.Body != nil {
-		rb, _ := ioutil.ReadAll(resp.Body)
-		resp.Body = ioutil.NopCloser(bytes.NewBuffer(rb))
-		if len(rb) > 8192 {
-			fmt.Printf("[MORPHEUS-DEBUG] Response Status: %s Body (truncated): %s...\n", resp.Status, string(rb[:8192]))
-		} else {
-			fmt.Printf("[MORPHEUS-DEBUG] Response Status: %s Body: %s\n", resp.Status, string(rb))
-		}
-	} else {
-		fmt.Printf("[MORPHEUS-DEBUG] Response Status: %v (no body)\n", resp.Status)
-	}
-
-	return resp, nil
+	return &MorpheusClient{Client: client, Config: morpheus_config}, nil
 }

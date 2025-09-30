@@ -24,6 +24,7 @@ type Config struct {
 
 type MorpheusClient struct {
 	Client *morpheus.Client
+	Config MorpheusConfig
 }
 
 type MorpheusConfig struct {

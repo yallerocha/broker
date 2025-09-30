@@ -1,6 +1,9 @@
 FROM golang:1.24.3-alpine3.21
 WORKDIR /usr/broker
 
+COPY morpheus-local.pem /usr/local/share/ca-certificates/
+RUN update-ca-certificates
+
 COPY . . 
 RUN go build -o brokerApp ./cmd
 

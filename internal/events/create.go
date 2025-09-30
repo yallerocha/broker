@@ -22,6 +22,8 @@ import (
 	sigsyaml "sigs.k8s.io/yaml"
 )
 
+// Morpheus_Create_Workload submits a Kubernetes workload (Deployment, Job, or Node) using a morpheus client.
+// It receives a morpheus client connected to the target cluster and a Workload data struct
 func Morpheus_Create_Workload(morpheusClient *utils.MorpheusClient, workload utils.Workload) error {
 	yamlStr := create_yaml_template(workload)
 	if yamlStr == "" {
@@ -35,14 +37,6 @@ func Morpheus_Create_Workload(morpheusClient *utils.MorpheusClient, workload uti
 	clusterID, err := strconv.ParseInt(workload.Label, 10, 64)
 	if err != nil {
 		return fmt.Errorf("invalid cluster id in workload.Label: %s", workload.Label)
-	}
-
-	fmt.Println("----- ApplyTemplateToCluster -----: clusterID: ", clusterID) // DEBUG
-	// Marshal the body to JSON so we can see exactly what will be sent over HTTP
-	if bodyJSON, jbErr := json.Marshal(req.Body); jbErr == nil {
-		fmt.Println("----- ApplyTemplateToCluster JSON payload -----:\n", string(bodyJSON))
-	} else {
-		fmt.Println("----- ApplyTemplateToCluster failed marshaling body: ", jbErr)
 	}
 
 	_, err = morpheusClient.Client.ApplyTemplateToCluster(clusterID, req)
