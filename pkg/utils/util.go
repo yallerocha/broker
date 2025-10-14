@@ -122,9 +122,17 @@ func SetMorpheusConfig(url, accessToken, refreshToken string, expiresIn int64, s
 
 // NewMorpheusClient creates a new Morpheus orchestrator instance
 // morpheusURL, accessToken, refreshToken, expiresIn, and scope are required for authentication
-func NewMorpheusClient(morpheus_config MorpheusConfig) (*MorpheusClient, error) {
-	client := morpheus.NewClient(morpheus_config.URL)
-	client.SetAccessToken(morpheus_config.AccessToken, morpheus_config.RefreshToken, morpheus_config.ExpiresIn, morpheus_config.Scope)
+func NewMorpheusClient() (*MorpheusClient, error) {
+	morpheusConfig := MorpheusConfig{
+		URL:          morpheus_url,
+		AccessToken:  morpheus_access_token,
+		RefreshToken: morpheus_refresh_token,
+		ExpiresIn:    morpheus_expires_in,
+		Scope:        morpheus_scope,
+	}
+	client := morpheus.NewClient(morpheus_url)
+	client.SetAccessToken(morpheus_access_token, morpheus_refresh_token, morpheus_expires_in, morpheus_scope)
 
-	return &MorpheusClient{Client: client, Config: morpheus_config}, nil
+	fmt.Println(client)
+	return &MorpheusClient{Client: client, Config: morpheusConfig}, nil
 }

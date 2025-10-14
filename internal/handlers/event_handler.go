@@ -27,8 +27,7 @@ func Handler(origin_data dataframe.DataFrame, mode string, config utils.Config) 
 	var err error
 	switch config.Orchestrator {
 	case "morpheus":
-		morpheus_config := utils.SetMorpheusConfig(config.MorpheusURL, config.MorpheusAccessToken, config.MorpheusRefreshToken, config.MorpheusExpiresIn, config.MorpheusScope)
-		morpheusClient, err = utils.NewMorpheusClient(*morpheus_config)
+		morpheusClient, err = utils.NewMorpheusClient()
 		if err != nil {
 			utils.Log_fatal("Failed to create Morpheus client", err)
 		}
