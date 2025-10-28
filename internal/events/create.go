@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 
@@ -73,12 +74,20 @@ func Create_Workload(dynClient *dynamic.DynamicClient, data utils.Workload, grou
 func deployment_create(data utils.Workload) *appv1.Deployment {
 	label := map[string]string{}
 
-	tolerations := []corev1.Toleration{{
-		Key:      "kwok-provider",
-		Operator: corev1.TolerationOpEqual,
-		Value:    "true",
-		Effect:   corev1.TaintEffectNoSchedule,
-	}}
+	// Only add tolerations if running in KWOK mode
+	// In real mode, nodes don't have kwok-provider taint, so tolerations would prevent scheduling
+	tolerations := []corev1.Toleration{}
+
+	// Check if we're in KWOK mode by environment variable or default to false
+	// If KWOK_MODE is set to "true", add tolerations
+	if strings.ToLower(os.Getenv("KWOK_MODE")) == "true" {
+		tolerations = []corev1.Toleration{{
+			Key:      "kwok-provider",
+			Operator: corev1.TolerationOpEqual,
+			Value:    "true",
+			Effect:   corev1.TaintEffectNoSchedule,
+		}}
+	}
 
 	if !slices.Contains([]string{"", "na", "n/a", "nan", "none"}, strings.ToLower(data.Label)) {
 		label["cloud"] = data.Label
@@ -102,18 +111,22 @@ func deployment_create(data utils.Workload) *appv1.Deployment {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:    "busybox",
-							Image:   "busybox:latest",
-							Command: []string{"sh", "-c", "while true; do echo running; sleep 10; done"}, // Simple long-running command
+							Name:    "cpu-worker",
+							Image:   "containerstack/cpustress:latest",
+							Command: []string{"sh", "-c", "stress-ng --cpu $(nproc) --timeout 0s"},
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse(data.CpuRequested),
+									corev1.ResourceMemory: resource.MustParse(data.MemRequested),
+								},
+								Limits: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse(data.CpuRequested),
 									corev1.ResourceMemory: resource.MustParse(data.MemRequested),
 								},
 							},
 						},
 					},
-					Tolerations: tolerations, // Apply Kwok tolerations
+					Tolerations: tolerations, // Conditionally apply Kwok tolerations
 				},
 			},
 		},
@@ -131,12 +144,18 @@ func deployment_create(data utils.Workload) *appv1.Deployment {
 func job_create(data utils.Workload) *batchv1.Job {
 	label := map[string]string{}
 
-	// Define standard tolerations for Kwok-based nodes.
-	tolerations := []corev1.Toleration{{
-		Key:      "kwok-provider",
-		Operator: corev1.TolerationOpEqual,
-		Value:    "true",
-		Effect:   corev1.TaintEffectNoSchedule},
+	// Only add tolerations if running in KWOK mode
+	// In real mode, nodes don't have kwok-provider taint, so tolerations would prevent scheduling
+	tolerations := []corev1.Toleration{}
+
+	// Check if we're in KWOK mode by environment variable
+	if strings.ToLower(os.Getenv("KWOK_MODE")) == "true" {
+		tolerations = []corev1.Toleration{{
+			Key:      "kwok-provider",
+			Operator: corev1.TolerationOpEqual,
+			Value:    "true",
+			Effect:   corev1.TaintEffectNoSchedule,
+		}}
 	}
 
 	// Apply a custom "cloud" label if specified in the workload data.
@@ -154,15 +173,16 @@ func job_create(data utils.Workload) *batchv1.Job {
 			Parallelism: int32Ptr(data.Replicas), // Run replicas in parallel
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"job": "job-app"}, // Selector for the Pod Template
+					Labels:      map[string]string{"job": "job-app"}, // Selector for the Pod Template
 					Annotations: data.Annotations,
 				},
 				Spec: corev1.PodSpec{
 					RestartPolicy: corev1.RestartPolicyNever, // Jobs are typically not restarted on completion
 					Containers: []corev1.Container{
 						{
-							Name:  "busybox",
-							Image: "busybox:latest",
+							Name:    "cpu-worker-job",
+							Image:   "containerstack/cpustress:latest",
+							Command: []string{"sh", "-c", "stress-ng --cpu 1 --timeout 30s && echo Job completed"},
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse(data.CpuRequested),
@@ -173,7 +193,6 @@ func job_create(data utils.Workload) *batchv1.Job {
 									corev1.ResourceMemory: resource.MustParse(data.MemRequested),
 								},
 							},
-							Command: []string{"sh", "-c", "echo Hello World! && sleep 30"}, // Simple command with sleep
 						},
 					},
 					Tolerations: tolerations, // Apply Kwok tolerations
@@ -194,8 +213,8 @@ func job_create(data utils.Workload) *batchv1.Job {
 func node_create(data utils.Workload) *corev1.Node {
 	label := map[string]string{}
 	annotations := map[string]string{
-		"node.alpha.kubernetes.io/ttl": "0",        // Kwok specific TTL
-		"kwok.x-k8s.io/node":           "fake",      // Identifies as a fake Kwok node
+		"node.alpha.kubernetes.io/ttl": "0",    // Kwok specific TTL
+		"kwok.x-k8s.io/node":           "fake", // Identifies as a fake Kwok node
 	}
 
 	// Apply a custom "cloud" label if specified in the workload data.
@@ -206,17 +225,17 @@ func node_create(data utils.Workload) *corev1.Node {
 	// Create the Node object based on the provided YAML manifesto structure.
 	node := &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        data.Name,
+			Name: data.Name,
 			Labels: map[string]string{
-				"beta.kubernetes.io/arch":     "amd64",
-				"beta.kubernetes.io/os":       "linux",
-				"kubernetes.io/arch":          "amd64",
-				"kubernetes.io/hostname":      data.Name,
-				"kubernetes.io/os":            "linux",
-				"kubernetes.io/role":          "agent",
+				"beta.kubernetes.io/arch":       "amd64",
+				"beta.kubernetes.io/os":         "linux",
+				"kubernetes.io/arch":            "amd64",
+				"kubernetes.io/hostname":        data.Name,
+				"kubernetes.io/os":              "linux",
+				"kubernetes.io/role":            "agent",
 				"node-role.kubernetes.io/agent": "",
-				"type": "kwok",
-				"cloud": data.Label, // Dynamic cloud label
+				"type":                          "kwok",
+				"cloud":                         data.Label, // Dynamic cloud label
 			},
 			Annotations: annotations,
 		},
@@ -242,16 +261,16 @@ func node_create(data utils.Workload) *corev1.Node {
 			},
 			Phase: corev1.NodeRunning, // Set node status to "Running"
 			NodeInfo: corev1.NodeSystemInfo{
-				Architecture:        "amd64",
-				BootID:              "",
+				Architecture:            "amd64",
+				BootID:                  "",
 				ContainerRuntimeVersion: "",
-				KernelVersion:       "",
-				KubeProxyVersion:    "fake",
-				KubeletVersion:      "fake",
-				MachineID:           "",
-				OperatingSystem:     "linux",
-				OSImage:             "",
-				SystemUUID:          "",
+				KernelVersion:           "",
+				KubeProxyVersion:        "fake",
+				KubeletVersion:          "fake",
+				MachineID:               "",
+				OperatingSystem:         "linux",
+				OSImage:                 "",
+				SystemUUID:              "",
 			},
 		},
 	}
