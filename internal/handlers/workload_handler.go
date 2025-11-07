@@ -36,12 +36,22 @@ func Deployment_action(dynamicContext *dynamic.DynamicClient, df dataframe.DataF
 	// Kubernetes will interpret "4" as 4 cores, "250m" as 250 millicores.
 	cpuRequested := df.Col("cpu").Elem(idx).String()
 
+	// Get workload type if specified, default to empty (will use cpu-intensive as default)
+	workloadType := ""
+	for _, colName := range df.Names() {
+		if colName == "workload_type" {
+			workloadType = df.Col("workload_type").Elem(idx).String()
+			break
+		}
+	}
+
 	deployment := utils.Workload{
 		Name:         df.Col("id").Elem(idx).String(),
 		Replicas:     int32(replicas),
 		CpuRequested: cpuRequested,
 		MemRequested: memRequested,
 		Label:        label,
+		WorkloadType: workloadType,
 		Annotations:  map[string]string{}, // Karmada-specific annotations are added in update/create logic.
 	}
 
@@ -94,12 +104,22 @@ func Job_action(dynamicContext *dynamic.DynamicClient, df dataframe.DataFrame, i
 		cpuRequested = cpuInput
 	}
 
+	// Get workload type if specified, default to empty (will use cpu-intensive as default)
+	workloadType := ""
+	for _, colName := range df.Names() {
+		if colName == "workload_type" {
+			workloadType = df.Col("workload_type").Elem(idx).String()
+			break
+		}
+	}
+
 	job := utils.Workload{
 		Name:         df.Col("id").Elem(idx).String(),
 		Replicas:     int32(replicas),
 		CpuRequested: cpuRequested,
 		MemRequested: memRequested,
 		Label:        label,
+		WorkloadType: workloadType,
 		Annotations: map[string]string{
 			"pod-complete.stage.kwok.x-k8s.io/delay": df.Col("job_duration").Elem(idx).String() + "s", // Kwok-specific annotation for job duration.
 		},

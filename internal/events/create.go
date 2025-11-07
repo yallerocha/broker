@@ -68,6 +68,85 @@ func Create_Workload(dynClient *dynamic.DynamicClient, data utils.Workload, grou
 	return err
 }
 
+// getWorkloadContainer returns the appropriate container configuration based on workload type
+func getWorkloadContainer(workloadType string, data utils.Workload) corev1.Container {
+	// Parse resource requirements
+	resources := corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse(data.CpuRequested),
+			corev1.ResourceMemory: resource.MustParse(data.MemRequested),
+		},
+		Limits: corev1.ResourceList{
+			corev1.ResourceCPU:    resource.MustParse(data.CpuRequested),
+			corev1.ResourceMemory: resource.MustParse(data.MemRequested),
+		},
+	}
+
+	// Normalize workload type
+	wType := strings.ToLower(strings.TrimSpace(workloadType))
+
+	switch wType {
+	case "memory-intensive":
+		return corev1.Container{
+			Name:    "memory-worker",
+			Image:   "polinux/stress:latest",
+			Command: []string{"stress", "--vm", "2", "--vm-bytes", "512M", "--vm-hang", "0"},
+			Resources: resources,
+		}
+
+	case "io-intensive":
+		return corev1.Container{
+			Name:    "io-worker",
+			Image:   "containerstack/cpustress:latest",
+			Command: []string{"stress-ng", "--io", "4", "--hdd", "2", "--timeout", "0s"},
+			Resources: resources,
+		}
+
+	case "network-intensive":
+		return corev1.Container{
+			Name:    "network-worker",
+			Image:   "nicolaka/netshoot:latest",
+			Command: []string{"sh", "-c", "while true; do curl -s http://httpbin.org/get > /dev/null 2>&1; sleep 1; done"},
+			Resources: resources,
+		}
+
+	case "mixed":
+		return corev1.Container{
+			Name:    "mixed-worker",
+			Image:   "containerstack/cpustress:latest",
+			Command: []string{"stress-ng", "--cpu", "1", "--vm", "1", "--vm-bytes", "256M", "--io", "1", "--timeout", "0s"},
+			Resources: resources,
+		}
+
+	case "bursty":
+		return corev1.Container{
+			Name:    "bursty-worker",
+			Image:   "containerstack/cpustress:latest",
+			Command: []string{"sh", "-c", "while true; do stress-ng --cpu 2 --timeout 10s; sleep 20; done"},
+			Resources: resources,
+		}
+
+	case "idle":
+		return corev1.Container{
+			Name:    "idle-worker",
+			Image:   "busybox:latest",
+			Command: []string{"sh", "-c", "while true; do echo 'healthy'; sleep 30; done"},
+			Resources: resources,
+		}
+
+	case "cpu-intensive":
+		fallthrough
+	default:
+		// Default to CPU-intensive workload
+		return corev1.Container{
+			Name:    "cpu-worker",
+			Image:   "containerstack/cpustress:latest",
+			Command: []string{"sh", "-c", "stress-ng --cpu $(nproc) --timeout 0s"},
+			Resources: resources,
+		}
+	}
+}
+
 // deployment_create prepares a Kubernetes Deployment object for submission.
 // It populates the Deployment's metadata, spec (replicas, image, commands, resource requests),
 // and tolerations based on the provided Workload data.
@@ -110,21 +189,7 @@ func deployment_create(data utils.Workload) *appv1.Deployment {
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
-						{
-							Name:    "cpu-worker",
-							Image:   "containerstack/cpustress:latest",
-							Command: []string{"sh", "-c", "stress-ng --cpu $(nproc) --timeout 0s"},
-							Resources: corev1.ResourceRequirements{
-								Requests: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse(data.CpuRequested),
-									corev1.ResourceMemory: resource.MustParse(data.MemRequested),
-								},
-								Limits: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse(data.CpuRequested),
-									corev1.ResourceMemory: resource.MustParse(data.MemRequested),
-								},
-							},
-						},
+						getWorkloadContainer(data.WorkloadType, data),
 					},
 					Tolerations: tolerations, // Conditionally apply Kwok tolerations
 				},
