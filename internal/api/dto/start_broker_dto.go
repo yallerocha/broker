@@ -17,6 +17,7 @@ type row struct {
 	Memory       string `json:"memory" binding:"required"`
 	Label        string `json:"label"`
 	Job_duration string `json:"job_duration"`
+	WorkloadType string `json:"workload_type"` // Type of workload: cpu-intensive, memory-intensive, etc.
 }
 
 // Defines a broker config containing the kubeconfig and the namespace information

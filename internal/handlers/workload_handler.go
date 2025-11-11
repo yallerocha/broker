@@ -39,8 +39,8 @@ func Deployment_action(dynamicContext *dynamic.DynamicClient, df dataframe.DataF
 	// Get workload type if specified, default to empty (will use cpu-intensive as default)
 	workloadType := ""
 	for _, colName := range df.Names() {
-		if colName == "workload_type" {
-			workloadType = df.Col("workload_type").Elem(idx).String()
+		if colName == "workloadType" { // Changed from "workload_type" to match lowerCamelCase rename
+			workloadType = df.Col("workloadType").Elem(idx).String()
 			break
 		}
 	}
@@ -107,8 +107,8 @@ func Job_action(dynamicContext *dynamic.DynamicClient, df dataframe.DataFrame, i
 	// Get workload type if specified, default to empty (will use cpu-intensive as default)
 	workloadType := ""
 	for _, colName := range df.Names() {
-		if colName == "workload_type" {
-			workloadType = df.Col("workload_type").Elem(idx).String()
+		if colName == "workloadType" { // Changed from "workload_type" to match lowerCamelCase rename
+			workloadType = df.Col("workloadType").Elem(idx).String()
 			break
 		}
 	}
