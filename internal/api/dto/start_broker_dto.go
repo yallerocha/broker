@@ -19,8 +19,14 @@ type row struct {
 	Job_duration string `json:"job_duration"`
 }
 
-// Defines a broker config containing the kubeconfig and the namespace information
+// Defines a broker config containing the kubeconfig, namespace and client information
 type broker_config struct {
-	Kubeconfig string `json:"kubeconfig" binding:"required"`
-	Namespace  string `json:"namespace" binding:"required"`
+	Orchestrator         string `json:"orchestrator" binding:"required"`
+	Kubeconfig           string `json:"kubeconfig" binding:"required"`
+	Namespace            string `json:"namespace" binding:"required"`
+	MorpheusURL          string `json:"morpheus_url"`
+	MorpheusAccessToken  string `json:"morpheus_access_token"`
+	MorpheusRefreshToken string `json:"morpheus_refresh_token"`
+	MorpheusExpiresIn    int64  `json:"morpheus_expires_in"`
+	MorpheusScope        string `json:"morpheus_scope"`
 }
