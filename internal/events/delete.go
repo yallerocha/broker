@@ -88,7 +88,6 @@ func Job_delete(dynClient *dynamic.DynamicClient, name string) error {
 	return err
 }
 
-// deleteClusterDeployment deletes a deployment from a specific cluster
 func findDeploymentIdByName(morpheusClient *utils.MorpheusClient, clusterID int, deploymentName string) (string, error) {
 	resp, err := morpheusClient.Client.Execute(&morpheus.Request{
 		Method: "GET",
