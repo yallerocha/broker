@@ -69,6 +69,28 @@ func Create_Workload(dynClient *dynamic.DynamicClient, data utils.Workload, grou
 	return err
 }
 
+// This ensures high memory utilization while leaving overhead for the container itself
+func calculateMemoryBytes(memRequested string) string {
+	// Parse the memory request (e.g., "2048Mi", "2Gi", "1024Mi")
+	quantity, err := resource.ParseQuantity(memRequested)
+	if err != nil {
+		log.Printf("⚠️  Failed to parse memory request '%s', defaulting to 900M", memRequested)
+		return "900M"
+	}
+
+	// Get value in bytes
+	memBytes := quantity.Value()
+	
+	targetBytes := int64(float64(memBytes))
+	
+	// Convert to megabytes for stress-ng (which expects M suffix)
+	targetMB := targetBytes / (1024 * 1024)
+	
+	result := fmt.Sprintf("%dM", targetMB)
+	log.Printf("💾 Memory-intensive workload: requested=%s, stress-ng will use=%s", memRequested, result)
+	return result
+}
+
 // getWorkloadContainer returns the appropriate container configuration based on workload type
 func getWorkloadContainer(workloadType string, data utils.Workload) corev1.Container {
 	// Check if running in KWOK simulation mode
@@ -109,10 +131,11 @@ func getWorkloadContainer(workloadType string, data utils.Workload) corev1.Conta
 
 	switch wType {
 	case "memory-intensive":
+		memBytes := calculateMemoryBytes(data.MemRequested)
 		return corev1.Container{
 			Name:      "memory-worker",
 			Image:     "polinux/stress-ng:latest",
-			Command:   []string{"stress-ng", "--vm", "1", "--vm-bytes", "900M", "--vm-keep", "--timeout", "0s"},
+			Command:   []string{"stress-ng", "--vm", "1", "--vm-bytes", memBytes, "--vm-keep", "--timeout", "0s"},
 			Resources: resources,
 		}
 
@@ -133,10 +156,11 @@ func getWorkloadContainer(workloadType string, data utils.Workload) corev1.Conta
 		}
 
 	case "mixed":
+		memBytes := calculateMemoryBytes(data.MemRequested)
 		return corev1.Container{
 			Name:      "mixed-worker",
 			Image:     "polinux/stress-ng:latest",
-			Command:   []string{"stress-ng", "--cpu", "1", "--vm", "1", "--vm-bytes", "900M", "--vm-keep", "--io", "1", "--timeout", "0s"},
+			Command:   []string{"stress-ng", "--cpu", "1", "--vm", "1", "--vm-bytes", memBytes, "--vm-keep", "--io", "1", "--timeout", "0s"},
 			Resources: resources,
 		}
 
