@@ -143,3 +143,57 @@ func Job_action(dynamicContext *dynamic.DynamicClient, df dataframe.DataFrame, i
 		utils.Log_err(fmt.Sprintf("Unknown action: %s", action), fmt.Errorf(""))
 	}
 }
+
+// Morpheus_Action identifies the specific action for a workload in Morpheus and performs it.
+// It receives a Morpheus client, a DataFrame containing the event data, and the index of the current event.
+func Morpheus_Action(morpheusClient *utils.MorpheusClient, df dataframe.DataFrame, idx int) {
+	replicas, _ := df.Col("replicas").Elem(idx).Int()
+	label := df.Col("label").Elem(idx).String()
+	clusterID, _ := df.Col("label").Elem(idx).Int()
+
+	memInput := df.Col("memory").Elem(idx).String()
+	var memRequested string
+	if memFloat, err := strconv.ParseFloat(memInput, 64); err == nil {
+		memRequested = fmt.Sprintf("%dMi", int64(memFloat*1024))
+	} else {
+		memRequested = memInput
+	}
+
+	cpuRequested := df.Col("cpu").Elem(idx).String()
+
+	workload := utils.Workload{
+		Name:         df.Col("id").Elem(idx).String(),
+		Replicas:     int32(replicas),
+		CpuRequested: cpuRequested,
+		MemRequested: memRequested,
+		Label:        label,
+		Annotations:  map[string]string{}, // Annotations can be added if needed.
+	}
+
+	action := strings.ToLower(df.Col("action").Elem(idx).String())
+
+	// Log the action being performed in Morpheus.
+	utils.Log_info(fmt.Sprintf("➡️ [%ss] [Morpheus Workload] %s: %s (managed by Morpheus for cluster ID '%s')", df.Col("timestamp").Elem(idx).String(), strings.ToUpper(action), workload.Name, label))
+	switch action {
+	case "create":
+		err := events.Morpheus_Create_Workload(morpheusClient, workload)
+		if err == nil {
+			utils.Log_info(fmt.Sprintf("Successfully created deployment %s in cluster %d", workload.Name, clusterID))
+		}
+		utils.Log_err("Failed to create Morpheus Workload", err)
+	case "delete":
+		err := events.Morpheus_Delete_Workload(morpheusClient, workload, clusterID)
+		if err == nil {
+			utils.Log_info(fmt.Sprintf("Successfully deleted deployment %s from cluster %d", workload.Name, clusterID))
+		}
+		utils.Log_err("Failed to delete Morpheus Workload", err)
+	case "update":
+		err := events.Morpheus_Update_Workload(morpheusClient, workload, clusterID)
+		if err == nil {
+			utils.Log_info(fmt.Sprintf("Successfully updated deployment %s in cluster %d", workload.Name, clusterID))
+		}
+		utils.Log_err("Failed to update Morpheus Workload", err)
+	default:
+		utils.Log_err(fmt.Sprintf("Unknown action: %s", action), fmt.Errorf(""))
+	}
+}

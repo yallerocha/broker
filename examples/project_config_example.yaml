@@ -1,2 +1,8 @@
-kubeconfig: "karmada.config"
-namespace: "default"
+orchestrator: "morpheus"                # Options: "karmada" or "morpheus"
+karmada_kubeconfig: "karmada.config"
+karmada_namespace: "default"
+morpheus_url: "https://change-me.com"   # Replace with your Morpheus URL
+morpheus_access_token: ""               # Replace with your access token
+morpheus_refresh_token: ""              # Replace with your refresh token
+morpheus_expires_in: 600                # Token expiration time in seconds
+morpheus_scope: "write"                 # Required scope for the token

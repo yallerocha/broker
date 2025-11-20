@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 
 	appv1 "k8s.io/api/apps/v1"
@@ -19,7 +20,33 @@ import (
 	"k8s.io/client-go/dynamic"
 
 	utils "github.com/cloud-ai-ufcg/broker/pkg/utils"
+	"github.com/gomorpheus/morpheus-go-sdk"
+	sigsyaml "sigs.k8s.io/yaml"
 )
+
+// Morpheus_Create_Workload submits a Kubernetes workload (Deployment, Job, or Node) using a morpheus client.
+// It receives a morpheus client connected to the target cluster and a Workload data struct
+func Morpheus_Create_Workload(morpheusClient *utils.MorpheusClient, workload utils.Workload) error {
+	yamlStr := create_yaml_template(workload)
+	if yamlStr == "" {
+		return fmt.Errorf("failed to generate YAML for workload %s", workload.Name)
+	}
+	req := &morpheus.Request{
+		Body: map[string]interface{}{"specYaml": yamlStr},
+	}
+
+	// workload.Label is expected to carry the target Morpheus cluster ID as a string.
+	clusterID, err := strconv.ParseInt(workload.Label, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid cluster id in workload.Label: %s", workload.Label)
+	}
+
+	_, err = morpheusClient.Client.ApplyTemplateToCluster(clusterID, req)
+	if err != nil {
+		return fmt.Errorf("failed to apply deployment YAML to cluster %d: %v", clusterID, err)
+	}
+	return nil
+}
 
 // Create_Workload submits a Kubernetes workload (Deployment, Job, or Node) using a dynamic client.
 // It receives a dynamic client connected to the target cluster, a Workload data struct,
@@ -67,6 +94,19 @@ func Create_Workload(dynClient *dynamic.DynamicClient, data utils.Workload, grou
 	}
 
 	return err
+}
+
+func create_yaml_template(workload utils.Workload) string {
+	dep := deployment_create(workload)
+	jsonBytes, err := json.Marshal(dep)
+	if err != nil {
+		return ""
+	}
+	yamlBytes, err := sigsyaml.JSONToYAML(jsonBytes)
+	if err != nil {
+		return ""
+	}
+	return string(yamlBytes)
 }
 
 // This ensures high memory utilization while leaving overhead for the container itself
@@ -419,13 +459,14 @@ func create_manifest(resource_type string, data utils.Workload) any {
 	var out any
 	resource_type = strings.ToLower(resource_type) // Ensure case-insensitivity
 
-	if resource_type == "deployments" {
+	switch resource_type {
+	case "deployments":
 		out = deployment_create(data)
-	} else if resource_type == "jobs" {
+	case "jobs":
 		out = job_create(data)
-	} else if resource_type == "nodes" {
+	case "nodes":
 		out = node_create(data)
-	} else {
+	default:
 		// Log an error if an unknown resource type is requested.
 		utils.Log_err(fmt.Sprintf("Unknown resource type: %s", resource_type), nil)
 		out = nil
