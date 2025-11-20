@@ -81,13 +81,20 @@ func calculateMemoryBytes(memRequested string) string {
 	// Get value in bytes
 	memBytes := quantity.Value()
 	
-	targetBytes := int64(float64(memBytes))
+	// Use 85% of available memory to leave overhead for stress-ng binary, stack, and OS
+	// This prevents OOMKilled errors when stress-ng tries to allocate memory
+	targetBytes := int64(float64(memBytes) * 0.85)
 	
 	// Convert to megabytes for stress-ng (which expects M suffix)
 	targetMB := targetBytes / (1024 * 1024)
 	
+	// Ensure at least 1MB is allocated
+	if targetMB < 1 {
+		targetMB = 1
+	}
+	
 	result := fmt.Sprintf("%dM", targetMB)
-	log.Printf("💾 Memory-intensive workload: requested=%s, stress-ng will use=%s", memRequested, result)
+	log.Printf("💾 Memory-intensive workload: requested=%s, stress-ng will use=%s (85%% to prevent OOM)", memRequested, result)
 	return result
 }
 
