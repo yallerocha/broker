@@ -120,19 +120,19 @@ func calculateMemoryBytes(memRequested string) string {
 
 	// Get value in bytes
 	memBytes := quantity.Value()
-	
+
 	// Use 85% of available memory to leave overhead for stress-ng binary, stack, and OS
 	// This prevents OOMKilled errors when stress-ng tries to allocate memory
 	targetBytes := int64(float64(memBytes) * 0.85)
-	
+
 	// Convert to megabytes for stress-ng (which expects M suffix)
 	targetMB := targetBytes / (1024 * 1024)
-	
+
 	// Ensure at least 1MB is allocated
 	if targetMB < 1 {
 		targetMB = 1
 	}
-	
+
 	result := fmt.Sprintf("%dM", targetMB)
 	log.Printf("💾 Memory-intensive workload: requested=%s, stress-ng will use=%s (85%% to prevent OOM)", memRequested, result)
 	return result
@@ -216,6 +216,85 @@ func getWorkloadContainer(workloadType string, data utils.Workload) corev1.Conta
 			Name:      "bursty-worker",
 			Image:     "polinux/stress-ng:latest",
 			Command:   []string{"sh", "-c", "while true; do stress-ng --cpu 2 --timeout 10s; sleep 20; done"},
+			Resources: resources,
+		}
+
+	case "realistic":
+		// Simulates a real web application with variable load patterns:
+		// - Base CPU load (~30% of requested)
+		// - Memory working set that grows/shrinks
+		// - Periodic spikes simulating traffic bursts
+		// - Network activity
+		memBytes := calculateMemoryBytes(data.MemRequested)
+		return corev1.Container{
+			Name:  "realistic-worker",
+			Image: "polinux/stress-ng:latest",
+			Command: []string{"sh", "-c", `
+				while true; do
+					# Base load phase (30 seconds) - simulates normal traffic
+					stress-ng --cpu 1 --cpu-load 30 --vm 1 --vm-bytes ` + memBytes + ` --sock 2 --timeout 30s;
+					
+					# Medium load phase (20 seconds) - simulates increased traffic
+					stress-ng --cpu 1 --cpu-load 60 --vm 1 --vm-bytes ` + memBytes + ` --sock 4 --timeout 20s;
+					
+					# High load spike (10 seconds) - simulates traffic spike
+					stress-ng --cpu 2 --cpu-load 90 --vm 1 --vm-bytes ` + memBytes + ` --vm-keep --sock 6 --io 2 --timeout 10s;
+					
+					# Cool down (20 seconds) - simulates low traffic period
+					stress-ng --cpu 1 --cpu-load 20 --timeout 20s;
+				done
+			`},
+			Resources: resources,
+		}
+
+	case "microservice":
+		// Simulates a typical microservice with network-heavy, low CPU/memory usage
+		// Good for testing network-based decisions
+		return corev1.Container{
+			Name:  "microservice-worker",
+			Image: "polinux/stress-ng:latest",
+			Command: []string{"sh", "-c", `
+				while true; do
+					# Normal operation - mostly network I/O with occasional CPU spikes
+					stress-ng --sock 4 --cpu 1 --cpu-load 20 --timeout 45s;
+					# Request processing spike
+					stress-ng --sock 8 --cpu 1 --cpu-load 70 --timeout 15s;
+				done
+			`},
+			Resources: resources,
+		}
+
+	case "database":
+		// Simulates a database workload with I/O heavy operations and memory caching
+		memBytes := calculateMemoryBytes(data.MemRequested)
+		return corev1.Container{
+			Name:  "database-worker",
+			Image: "polinux/stress-ng:latest",
+			Command: []string{"sh", "-c", `
+				while true; do
+					# Normal query processing - I/O and memory heavy
+					stress-ng --hdd 2 --io 4 --vm 1 --vm-bytes ` + memBytes + ` --vm-keep --timeout 40s;
+					# Heavy query/backup simulation
+					stress-ng --hdd 4 --io 8 --vm 1 --vm-bytes ` + memBytes + ` --vm-keep --cpu 1 --timeout 20s;
+				done
+			`},
+			Resources: resources,
+		}
+
+	case "batch":
+		// Simulates batch processing jobs with high resource usage followed by idle
+		memBytes := calculateMemoryBytes(data.MemRequested)
+		return corev1.Container{
+			Name:  "batch-worker",
+			Image: "polinux/stress-ng:latest",
+			Command: []string{"sh", "-c", `
+				while true; do
+					# Heavy processing phase
+					stress-ng --cpu 2 --vm 1 --vm-bytes ` + memBytes + ` --vm-keep --io 2 --timeout 60s;
+					# Idle phase between batches
+					sleep 30;
+				done
+			`},
 			Resources: resources,
 		}
 

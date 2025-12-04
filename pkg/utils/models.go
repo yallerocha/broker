@@ -8,7 +8,20 @@ type Workload struct {
 	CpuRequested string
 	MemRequested string
 	Label        string
-	WorkloadType string // Type of workload: cpu-intensive, memory-intensive, io-intensive, network-intensive, mixed, bursty, idle
+	// WorkloadType defines the behavior of the workload container.
+	// Available types:
+	//   - cpu-intensive: Constant high CPU usage (default)
+	//   - memory-intensive: Allocates and holds memory (85% of requested)
+	//   - io-intensive: Heavy disk I/O operations
+	//   - network-intensive: Socket/network stress
+	//   - mixed: Combination of CPU, memory, and I/O
+	//   - bursty: Alternates between high CPU (10s) and idle (20s)
+	//   - idle: Minimal resource usage, just stays alive
+	//   - realistic: Variable load pattern simulating real web app traffic
+	//   - microservice: Network-heavy with occasional CPU spikes
+	//   - database: I/O and memory intensive with query simulation
+	//   - batch: Heavy processing followed by idle periods
+	WorkloadType string
 	Annotations  map[string]string
 }
 
