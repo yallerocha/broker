@@ -1,6 +1,6 @@
 # Broker
 
-The Broker is the workload submission component responsible for creating, updating, and deleting Kubernetes resources (deployments and jobs) across multiple clusters. It processes event data from CSV files or API requests and applies them to the target clusters through Karmada or direct Kubernetes API calls.
+The Broker is the workload submission component responsible for creating, updating, and deleting Kubernetes resources (deployments and jobs) across multiple clusters. It processes event data from API requests and applies them to the target clusters.
 
 ## Overview
 
@@ -10,7 +10,7 @@ The Broker acts as the interface between the simulator's event-driven workload g
 
 The Broker processes three types of workload events:
 
-**Create**: Deploys new workloads (deployments or jobs) to specified clusters
+**Create**: Deploys new workloads to specified clusters
 
 **Update**: Modifies existing workload specifications (resource requests, replicas, etc.)
 
@@ -18,14 +18,14 @@ The Broker processes three types of workload events:
 
 ## Prerequisites
 
-- Go 1.19 or higher
+- Go 1.24.2 or higher
 - Access to Kubernetes clusters (configured via kubeconfig)
-- Karmada installed and configured (for multi-cluster management)
+- Orchestrator installed and configured (for multi-cluster management)
 - Docker and Docker Compose (for containerized deployment)
 
 ## How to Run
 
-> **Note:** For detailed setup and execution instructions, including infrastructure setup and complete workflow, please refer to the [main simulator README](../README.md). The Broker is typically run as part of the complete simulator environment via Docker Compose. It operates in API mode, listening on port 8080 for workload submission requests from the simulator's main controller.
+> **Note:** For detailed setup and execution instructions, including infrastructure setup and complete workflow, please refer to the [WASP README](https://github.com/cloud-ai-ufcg/simulator/blob/sbrc/README.md). The Broker is typically run as part of the complete simulator environment via Docker Compose. It operates in API mode, listening on port 8080 for workload submission requests from the simulator's main controller.
 
 When running as part of the simulator, the Broker:
 - Automatically connects to configured Kubernetes clusters via mounted kubeconfig
