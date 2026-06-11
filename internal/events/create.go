@@ -24,6 +24,19 @@ import (
 	sigsyaml "sigs.k8s.io/yaml"
 )
 
+// Workload container images. Estas imagens são multi-arquitetura (incluem
+// linux/ppc64le, amd64, arm64, s390x), então funcionam tanto em x86 quanto em
+// Power9. As imagens antigas (polinux/stress-ng, containerstack/cpustress) só
+// possuíam build amd64, fazendo os pods ficarem em ImagePullBackOff em ppc64le.
+const (
+	// stressNgImage é baseada em debian:12 e tem stress-ng e /bin/sh no PATH,
+	// servindo tanto para comandos diretos ("stress-ng ...") quanto "sh -c".
+	stressNgImage = "ghcr.io/colinianking/stress-ng:latest"
+	// idleImage e jobImage usam stress-ng/busybox multi-arch.
+	idleImage = "busybox:latest"
+	jobImage  = "ghcr.io/colinianking/stress-ng:latest"
+)
+
 // Morpheus_Create_Workload submits a Kubernetes workload (Deployment, Job, or Node) using a morpheus client.
 // It receives a morpheus client connected to the target cluster and a Workload data struct
 func Morpheus_Create_Workload(morpheusClient *utils.MorpheusClient, workload utils.Workload) error {
@@ -146,7 +159,7 @@ func getWorkloadContainer(workloadType string, data utils.Workload) corev1.Conta
 		log.Println("🎭 KWOK Mode: Creating fake container (busybox)")
 		return corev1.Container{
 			Name:    "workload",
-			Image:   "busybox",
+			Image:   idleImage,
 			Command: []string{"sh", "-c", "echo 'Simulated workload' && sleep 3600"},
 			Resources: corev1.ResourceRequirements{
 				Requests: corev1.ResourceList{
@@ -181,7 +194,7 @@ func getWorkloadContainer(workloadType string, data utils.Workload) corev1.Conta
 		memBytes := calculateMemoryBytes(data.MemRequested)
 		return corev1.Container{
 			Name:      "memory-worker",
-			Image:     "polinux/stress-ng:latest",
+			Image:     stressNgImage,
 			Command:   []string{"stress-ng", "--vm", "1", "--vm-bytes", memBytes, "--vm-keep", "--timeout", "0s"},
 			Resources: resources,
 		}
@@ -189,7 +202,7 @@ func getWorkloadContainer(workloadType string, data utils.Workload) corev1.Conta
 	case "io-intensive":
 		return corev1.Container{
 			Name:      "io-worker",
-			Image:     "polinux/stress-ng:latest",
+			Image:     stressNgImage,
 			Command:   []string{"stress-ng", "--io", "4", "--hdd", "2", "--timeout", "0s"},
 			Resources: resources,
 		}
@@ -197,7 +210,7 @@ func getWorkloadContainer(workloadType string, data utils.Workload) corev1.Conta
 	case "network-intensive":
 		return corev1.Container{
 			Name:      "network-worker",
-			Image:     "polinux/stress-ng:latest",
+			Image:     stressNgImage,
 			Command:   []string{"stress-ng", "--sock", "4", "--timeout", "0s"},
 			Resources: resources,
 		}
@@ -206,7 +219,7 @@ func getWorkloadContainer(workloadType string, data utils.Workload) corev1.Conta
 		memBytes := calculateMemoryBytes(data.MemRequested)
 		return corev1.Container{
 			Name:      "mixed-worker",
-			Image:     "polinux/stress-ng:latest",
+			Image:     stressNgImage,
 			Command:   []string{"stress-ng", "--cpu", "1", "--vm", "1", "--vm-bytes", memBytes, "--vm-keep", "--io", "1", "--timeout", "0s"},
 			Resources: resources,
 		}
@@ -214,7 +227,7 @@ func getWorkloadContainer(workloadType string, data utils.Workload) corev1.Conta
 	case "bursty":
 		return corev1.Container{
 			Name:      "bursty-worker",
-			Image:     "polinux/stress-ng:latest",
+			Image:     stressNgImage,
 			Command:   []string{"sh", "-c", "while true; do stress-ng --cpu 2 --timeout 10s; sleep 20; done"},
 			Resources: resources,
 		}
@@ -228,7 +241,7 @@ func getWorkloadContainer(workloadType string, data utils.Workload) corev1.Conta
 		memBytes := calculateMemoryBytes(data.MemRequested)
 		return corev1.Container{
 			Name:  "realistic-worker",
-			Image: "polinux/stress-ng:latest",
+			Image: stressNgImage,
 			Command: []string{"sh", "-c", `
 				while true; do
 					# Base load phase (30 seconds) - simulates normal traffic
@@ -252,7 +265,7 @@ func getWorkloadContainer(workloadType string, data utils.Workload) corev1.Conta
 		// Good for testing network-based decisions
 		return corev1.Container{
 			Name:  "microservice-worker",
-			Image: "polinux/stress-ng:latest",
+			Image: stressNgImage,
 			Command: []string{"sh", "-c", `
 				while true; do
 					# Normal operation - mostly network I/O with occasional CPU spikes
@@ -269,7 +282,7 @@ func getWorkloadContainer(workloadType string, data utils.Workload) corev1.Conta
 		memBytes := calculateMemoryBytes(data.MemRequested)
 		return corev1.Container{
 			Name:  "database-worker",
-			Image: "polinux/stress-ng:latest",
+			Image: stressNgImage,
 			Command: []string{"sh", "-c", `
 				while true; do
 					# Normal query processing - I/O and memory heavy
@@ -286,7 +299,7 @@ func getWorkloadContainer(workloadType string, data utils.Workload) corev1.Conta
 		memBytes := calculateMemoryBytes(data.MemRequested)
 		return corev1.Container{
 			Name:  "batch-worker",
-			Image: "polinux/stress-ng:latest",
+			Image: stressNgImage,
 			Command: []string{"sh", "-c", `
 				while true; do
 					# Heavy processing phase
@@ -301,7 +314,7 @@ func getWorkloadContainer(workloadType string, data utils.Workload) corev1.Conta
 	case "idle":
 		return corev1.Container{
 			Name:      "idle-worker",
-			Image:     "busybox:latest",
+			Image:     idleImage,
 			Command:   []string{"sh", "-c", "while true; do echo 'healthy'; sleep 30; done"},
 			Resources: resources,
 		}
@@ -312,7 +325,7 @@ func getWorkloadContainer(workloadType string, data utils.Workload) corev1.Conta
 		// Default to CPU-intensive workload
 		return corev1.Container{
 			Name:      "cpu-worker",
-			Image:     "polinux/stress-ng:latest",
+			Image:     stressNgImage,
 			Command:   []string{"stress-ng", "--cpu", "1", "--timeout", "0s"},
 			Resources: resources,
 		}
@@ -418,7 +431,7 @@ func job_create(data utils.Workload) *batchv1.Job {
 					Containers: []corev1.Container{
 						{
 							Name:    "cpu-worker-job",
-							Image:   "containerstack/cpustress:latest",
+							Image:   jobImage,
 							Command: []string{"sh", "-c", "stress-ng --cpu 1 --timeout 30s && echo Job completed"},
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
